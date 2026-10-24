@@ -58,9 +58,11 @@ function preview(r) {
   const box = el("div", { className: "preview" });
   if (r.preview_url) {
     box.append(el("img", { src: r.preview_url, alt: "Aperçu du document", style: "width:100%;display:block" }));
-  } else {
+  } else if (CONFIG.DEMO) {
     box.append(el("div", { className: "top" }, "Avis d’impôt établi en 2021 — Direction générale des finances publiques. Vos références : numéro fiscal, référence de l’avis."));
     box.append(el("div", { className: "blur" }, "Le reste du document est masqué. Revenus imposables, impôt sur le revenu net avant corrections, contributions sociales, solde à payer ou à recevoir, modalités de paiement et de réclamation."));
+  } else {
+    box.append(el("div", { className: "top" }, "Aperçu indisponible pour ce document."));
   }
   box.append(el("div", { className: "gate" }, el("strong", {}, "Payez pour voir le document complet"),
     el("button", { onclick: () => (location.href = "/pricing.html") }, "Débloquer le document")));
