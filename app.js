@@ -1,5 +1,5 @@
 // Réglages. DEMO=true : résultats simulés, sans serveur. Mettre false quand l'API répond.
-const CONFIG = { API_BASE: "https://ilvje-31-44-97-94.run.pinggy-free.link", DEMO: true };
+const CONFIG = { API_BASE: "https://ilvje-31-44-97-94.run.pinggy-free.link", DEMO: false };
 // Tarifs et délais : valeurs provisoires à ajuster.
 const RATE = { transcribe: 0.02, translate: 0.05 };           // € par mot
 const DIFFICULTY = { fiscal: 1.0, juridique: 1.3, manuscrit: 1.6, autre: 1.0 };
