@@ -91,20 +91,17 @@ function makeVisualFrame(result) {
   const documentInfo = result.document || {};
   const translation = result.translation || {};
   const preview = translation.preview || {};
-  const frame = el("div", { className: "visual-frame" });
+  const frame = el("div", { id: "translation-visual", className: "visual-frame" });
   const original = documentInfo.original_preview || {};
   const width = original.width || 900, height = original.height || 1273;
   frame.style.aspectRatio = `${width} / ${height}`;
 
   if (documentInfo.mode === "scan" || preview.mode === "scan_text_fade") {
-    frame.classList.add("scan-composite");
-    if (original.url) frame.append(el("img", { className: "scan-base", src: original.url, alt: "Original scan" }));
+    frame.classList.add("scan-fade");
     if (preview.source_text_url && preview.target_text_url) {
       frame.append(
         el("img", { className: "text-layer source-layer", src: preview.source_text_url, alt: "Transcription text" }),
-        el("img", { className: "text-layer target-layer", src: preview.target_text_url, alt: "English translation" }),
-        el("img", { className: "text-layer top-blur source-layer", src: preview.source_text_url, alt: "" }),
-        el("img", { className: "text-layer top-blur target-layer", src: preview.target_text_url, alt: "" }));
+        el("img", { className: "text-layer target-layer", src: preview.target_text_url, alt: "English translation" }));
     }
   } else if (preview.url) {
     frame.classList.add("native-preview");
@@ -113,9 +110,7 @@ function makeVisualFrame(result) {
     frame.classList.add("missing-preview");
     frame.append(el("span", {}, translation.message || "Translation preview is unavailable."));
   }
-  frame.append(el("div", { className: "gate" },
-    el("strong", {}, "Unlock the full result"),
-    el("a", { className: "button", href: "/pricing.html" }, "View options")));
+  frame.append(el("div", { className: "gate" }, el("strong", {}, "Full document available after purchase")));
   return frame;
 }
 
@@ -131,10 +126,13 @@ function render(result) {
   $("source-status").className = `result-heading ${transcription.status === "ready" ? "ok" : "warn"}`;
   $("translation-status").textContent = statusText(translation.status, "Translation");
   $("translation-status").className = `result-heading ${translation.status === "ready" ? "ok" : "warn"}`;
-  $("stats").replaceChildren(
+  const metrics = [
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
-    el("div", {}, el("strong", {}, language), el("span", {}, "language")),
-    el("div", {}, el("strong", {}, documentInfo.reduction_percent == null ? "—" : `${documentInfo.reduction_percent}%`), el("span", {}, "reduction")));
+    el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
+  if (Number(documentInfo.reduction_percent) > 0) {
+    metrics.push(el("div", {}, el("strong", {}, `${documentInfo.reduction_percent}%`), el("span", {}, "size reduction")));
+  }
+  $("stats").replaceChildren(...metrics);
 
   const source = $("source-visual");
   source.style.aspectRatio = `${documentInfo.original_preview?.width || 900} / ${documentInfo.original_preview?.height || 1273}`;
@@ -142,12 +140,19 @@ function render(result) {
     ? el("img", { className: "scan-base", src: documentInfo.original_preview.url, alt: "Original unblurred document" })
     : el("span", { className: "missing-source" }, "Original scan unavailable."));
 
-  $("transcribe-price").textContent = price(words, kind, "transcribe");
+  $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
   const select = $("target-language");
   const defaultTarget = language.toLowerCase() === "english" ? "French" : "English";
   const selectedTarget = translation.target_language || defaultTarget;
   select.replaceChildren(...LANGS.map((name) => el("option", { value: name, selected: name === selectedTarget }, name)));
-  $("translate-price").textContent = price(words, kind, "translate");
+  const updateTranslationOffer = () => {
+    $("translate-action").textContent = `Translate for ${price(words, kind, "translate")}`;
+    const count = select.value === selectedTarget ? translation.estimated_word_count : null;
+    $("translation-stats").replaceChildren(...(count == null ? [] :
+      [el("div", {}, el("strong", {}, String(count)), el("span", {}, "estimated words"))]));
+  };
+  select.onchange = updateTranslationOffer;
+  updateTranslationOffer();
 
   $("translation-visual").replaceWith(makeVisualFrame(result));
   $("upload-panel").hidden = true;

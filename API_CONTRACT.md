@@ -12,10 +12,11 @@ The existing asynchronous endpoints remain:
 
 ## Scan-only document
 
-For pages routed as full-page scans, the right-hand panel keeps the original
-scan visible and fades two transparent text PNG layers over it: source-language
-transcription and translation. The PNG canvas dimensions match the original
-scan, and the client keeps the paywall fixed over the animation.
+For pages routed as full-page scans, the right-hand panel fades between two
+white-page PNGs typeset from UTF-8 text: the source-language VLM transcription
+and its translation. Each PNG keeps its opening lines readable and blurs the
+lower portion. Neither PNG contains the source scan. The client holds the
+paywall in a fixed position over the animation.
 
 ```json
 {
@@ -38,6 +39,7 @@ scan, and the client keeps the paywall fixed over the animation.
   "translation": {
     "status": "needs_review",
     "target_language": "English",
+    "estimated_word_count": 47,
     "preview": {
       "mode": "scan_text_fade",
       "source_text_url": "/artifact/{job_id}/scan-source-text.png",
@@ -65,7 +67,9 @@ fade is used.
 }
 ```
 
-Transcription and translation also have separate `.txt` and `.pdf` artifacts.
+Transcription and translation also have separate UTF-8 `.txt` and PDF artifacts.
+The source text uses the VLM draft when available, and translated text comes
+from XLIFF, so the preview retains characters such as Polish `ł` and `€`.
 Only the site-facing outputs are published; `/tmp/vlm_debug` remains diagnostic
 data. `ready`, `needs_review`, and `error` are independent states for each
 result. The current server reports `needs_review` until automatic review

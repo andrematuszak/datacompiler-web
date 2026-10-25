@@ -21,15 +21,19 @@
     </section>
     <div id="work" class="work" hidden>
       <section class="panel" aria-label="Transcribed document">
+        <div id="source-visual" class="visual-frame"></div>
         <h2 id="source-status" class="result-heading"></h2>
         <div class="stats" id="stats"></div>
-        <div id="source-visual" class="visual-frame"></div>
-        <div class="offer"><strong>Transcribe for</strong><strong id="transcribe-price"></strong></div>
+        <a id="transcribe-action" class="action-button" href="/pricing.html"></a>
       </section>
       <section class="panel" aria-label="Translation result">
         <h2 id="translation-status" class="result-heading"></h2>
         <div id="translation-visual" class="visual-frame"></div>
-        <div class="offer"><label class="target-language"><span>Translate for</span><select id="target-language" aria-label="Translation language"></select></label><strong id="translate-price"></strong></div>
+        <div class="stats translation-stats" id="translation-stats"></div>
+        <div class="translation-actions">
+          <label class="target-language"><span>Translate to</span><select id="target-language" aria-label="Translation language"></select></label>
+          <a id="translate-action" class="action-button" href="/pricing.html"></a>
+        </div>
       </section>
     </div>
   </main>
