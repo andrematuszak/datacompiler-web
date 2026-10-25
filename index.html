@@ -4,25 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>DataCompiler — document processing and translation</title>
-  <meta name="description" content="Upload a document to preview transcription and translation processing.">
+  <meta name="description" content="Upload a document for transcription and translation.">
   <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4:wght@400;600&display=swap">
 </head>
 <body>
   <header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header>
   <main class="wrap">
     <h1>Document processing and translation</h1>
-    <p class="lead">Drop a document to see its original preview, transcription status, and translation options.</p>
-    <div class="work">
-      <section class="panel" aria-label="Original document and transcription">
-        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a document">
-          <strong>Drag a document here</strong><span>or click to choose one</span><small>PDF, JPG or PNG</small>
-          <input id="file" type="file" accept=".pdf,image/*" hidden>
-        </div>
-        <div id="source-out" class="result-stack" aria-live="polite"></div>
+    <section id="upload-panel" class="upload-panel" aria-label="Upload a document">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a PDF">
+        <strong>Drop a PDF here</strong><span>or click to upload</span><small>PDF, JPG or PNG</small>
+        <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg" hidden>
+      </div>
+      <p id="error" class="status warn" hidden role="alert"></p>
+    </section>
+    <div id="work" class="work" hidden>
+      <section class="panel" aria-label="Transcribed document">
+        <h2 id="source-status" class="result-heading"></h2>
+        <div class="stats" id="stats"></div>
+        <div id="source-visual" class="visual-frame"></div>
+        <div class="offer"><strong>Transcribe for</strong><strong id="transcribe-price"></strong></div>
       </section>
-      <section class="panel" aria-live="polite" aria-label="Translation">
-        <div id="result-out" class="empty">The translation will appear here after processing.</div>
+      <section class="panel" aria-label="Translation result">
+        <h2 id="translation-status" class="result-heading"></h2>
+        <div id="translation-visual" class="visual-frame"></div>
+        <div class="offer"><label class="target-language"><span>Translate for</span><select id="target-language" aria-label="Translation language"></select></label><strong id="translate-price"></strong></div>
       </section>
     </div>
   </main>
