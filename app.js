@@ -29,6 +29,7 @@ async function process(file) {
   try {
     render(CONFIG.DEMO ? await mock(file) : await callApi(file));
   } catch (e) {
+    console.error(e);
     out.className = "empty"; out.textContent = "Le traitement a échoué. Réessayez, ou écrivez à contact@data-compiler.com.";
   }
 }
