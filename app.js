@@ -1,5 +1,5 @@
 // Settings. DEMO=true returns simulated results without a server; set it to false when the API is up.
-const CONFIG = { API_BASE: "https://pharmaceuticals-select-revenues-conditions.trycloudflare.com", DEMO: false };
+const CONFIG = { API_BASE: "https://enjoy-petite-context-amendment.trycloudflare.com", DEMO: false };
 // Prices and lead times: provisional values, adjust as needed.
 const RATE = { transcribe: 0.02, translate: 0.05 };           // € per word
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
