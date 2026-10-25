@@ -32,24 +32,28 @@ async function process(file) {
     out.className = "empty"; out.textContent = "Le traitement a échoué. Réessayez, ou écrivez à contact@data-compiler.com.";
   }
 }
-async function mock(file) {
-  await new Promise((r) => setTimeout(r, 1500));
-  const n = file.name.toLowerCase();
-  if (n.includes("polish")) return { words: 412, language: "Polonais", needs_review: true, kind: "manuscrit" };
-  if (n.includes("tax")) return { words: 868, language: "Français", needs_review: false, kind: "fiscal" };
-  return { words: 300, language: "Anglais", needs_review: true, kind: "autre" };
-}
 async function callApi(file) {
+  const api = CONFIG.API_BASE.replace(/\/+$/, "");          // tolère un "/" final
   const fd = new FormData(); fd.append("file", file);
-  const up = await fetch(`${CONFIG.API_BASE}/upload`, { method: "POST", body: fd });
+  const up = await fetch(`${api}/upload`, { method: "POST", body: fd });
+  if (!up.ok) throw new Error("Upload : HTTP " + up.status);
   const { job_id } = await up.json();
-  for (;;) {
+  if (!job_id) throw new Error("Pas de job_id dans la réponse");
+  for (let i = 0; i < 150; i++) {                           // 5 minutes maximum
     await new Promise((r) => setTimeout(r, 2000));
-    const st = await (await fetch(`${CONFIG.API_BASE}/status/${job_id}`)).json();
-    if (st.state === "done") break;
-    if (st.state === "error") throw new Error("job");
+    const st = await fetch(`${api}/status/${job_id}`);
+    if (!st.ok) throw new Error("Status : HTTP " + st.status);
+    const { state } = await st.json();
+    if (state === "done") {
+      const res = await fetch(`${api}/result/${job_id}`);
+      if (!res.ok) throw new Error("Result : HTTP " + res.status);
+      const data = await res.json();
+      if (data.preview_url) data.preview_url = api + data.preview_url;
+      return data;
+    }
+    if (state === "error") throw new Error("Le pipeline a échoué (voir le terminal d'uvicorn)");
   }
-  return (await fetch(`${CONFIG.API_BASE}/result/${job_id}`)).json(); // { words, language, needs_review, kind, preview_url? }
+  throw new Error("Délai dépassé");
 }
 
 // --- Affichage ---
