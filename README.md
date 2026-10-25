@@ -1,15 +1,15 @@
 # datacompiler-web
 
-Site statique de data-compiler.com (HTML/CSS/JS, aucune dépendance, aucun build).
+Static site for data-compiler.com (HTML/CSS/JS, no dependencies, no build step).
 
-## Déployer
-- Netlify > Add new site > Deploy manually : glisser le dossier (ou le zip), puis ajouter le domaine data-compiler.com.
-- Plus tard : connecter ce dépôt (uniquement celui-ci) pour déployer à chaque `git push`.
+## Deploy
+- Netlify > Add new site > Deploy manually: drop the folder (or the zip), then add the domain data-compiler.com.
+- Later: connect this repository (only this one) to deploy on every `git push`.
 
-## Démo
-`app.js` : `CONFIG.DEMO = true` renvoie des résultats simulés (chiffres fictifs ; le nom du fichier choisit le cas : « polish » → révision humaine, « tax » → prêt). Passer à `false` quand `api.data-compiler.com` répond (`/upload`, `/status/{id}`, `/result/{id}`).
+## Demo mode
+In `app.js`, `CONFIG.DEMO = true` returns simulated results (fake numbers; the file name picks the case: "polish" = human review, "tax" = ready). Set it to `false` once the API answers (`/upload`, `/status/{id}`, `/result/{id}`, `/preview/{id}.png`) and point `API_BASE` at it.
 
-## Règles
-- Aucun secret dans ce dépôt (clés OpenRouter, etc. : sur le serveur uniquement).
-- L'aperçu flouté doit être une image floutée côté serveur (`preview_url`) ; le flou CSS n'est qu'un décor de démo.
-- Tarifs, délais et textes de `pricing.html` sont provisoires.
+## Rules
+- No secrets in this repository (OpenRouter keys, etc. live on the server only).
+- The blurred preview must be an image blurred server-side (`preview_url`); the CSS blur is demo decoration only.
+- Prices, lead times and the texts in `pricing.html` are provisional.
