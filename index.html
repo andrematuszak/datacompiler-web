@@ -1,1 +1,32 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>DataCompiler – document in, document out</title><meta name="description" content="Drop a document, get it back processed, with price and delivery date if human review is needed."><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap"></head><body><header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header><main class="wrap"><h1>Drop a document, get it back processed</h1><p class="lead">Scans, mixed PDFs, handwriting. If the result is reliable, it is ready to download; otherwise you see the price and delivery date of a human review.</p><div class="work"><section class="panel" aria-label="Document to process"><div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a document"><strong>Drag a document here</strong><span>or click to choose one</span><small>PDF, JPG or PNG</small><input id="file" type="file" accept=".pdf,image/*" hidden></div></section><section class="panel" aria-live="polite" aria-label="Result"><div id="out" class="empty">The processed document will appear here.</div></section></div></main><footer><div class="wrap">© DataCompiler · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer><script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>DataCompiler — document processing and translation</title>
+  <meta name="description" content="Upload a document to preview transcription and translation processing.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap">
+</head>
+<body>
+  <header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header>
+  <main class="wrap">
+    <h1>Document processing and translation</h1>
+    <p class="lead">Drop a document to see its original preview, transcription status, and translation options.</p>
+    <div class="work">
+      <section class="panel" aria-label="Original document and transcription">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a document">
+          <strong>Drag a document here</strong><span>or click to choose one</span><small>PDF, JPG or PNG</small>
+          <input id="file" type="file" accept=".pdf,image/*" hidden>
+        </div>
+        <div id="source-out" class="result-stack" aria-live="polite"></div>
+      </section>
+      <section class="panel" aria-live="polite" aria-label="Translation">
+        <div id="result-out" class="empty">The translation will appear here after processing.</div>
+      </section>
+    </div>
+  </main>
+  <footer><div class="wrap">© DataCompiler · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
+  <script src="/app.js"></script>
+</body>
+</html>
