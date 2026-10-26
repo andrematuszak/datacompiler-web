@@ -37,3 +37,18 @@ form[name="contact"] input,form[name="contact"] textarea{width:100%;font:inherit
 form[name="contact"] textarea{resize:vertical;min-height:150px}
 form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;color:#fff;background:var(--accent);border:0;border-radius:9px;padding:12px 22px;min-height:48px;cursor:pointer}
 @media(max-width:760px){.format-controls{gap:10px}.format-controls .target-language{flex-wrap:wrap}.offer-row,.translation-actions{align-items:stretch}.offer-row .action-button,.translation-actions .action-button{width:100%}}
+
+/* Keep the completed result comfortably within a laptop viewport. */
+.wrap{max-width:1440px}
+.work{margin-top:28px;gap:24px}
+.panel{padding:20px 24px}
+.panel .visual-frame{width:auto;height:min(50vh,560px);max-width:100%;margin-inline:auto}
+.panel .result-heading{margin-top:14px}
+.panel .stats{min-height:54px;padding-top:12px}
+.translation-stats{min-height:54px;padding-top:12px}
+.translation-actions{flex-wrap:nowrap;gap:10px}
+.format-controls{flex-wrap:nowrap;gap:12px;min-width:0}
+.target-language{gap:6px;white-space:nowrap}
+.target-language select{max-width:130px}
+@media(max-width:1000px){.work{grid-template-columns:1fr}}
+@media(max-width:760px){.panel .visual-frame{height:min(50vh,560px)}.translation-actions,.format-controls{flex-wrap:wrap}}
