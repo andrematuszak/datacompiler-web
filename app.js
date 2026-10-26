@@ -2,6 +2,7 @@ const CONFIG = { API_BASE: "https://blog-deeper-obvious-installed.trycloudflare.
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
+const FORMATS = ["PDF (text)", "DOCX", "TXT"];
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 
@@ -16,6 +17,22 @@ function statusText(state, noun) {
   if (state === "needs_review") return `${noun} needs human review`;
   if (state === "error") return `${noun} could not be completed`;
   return `${noun} is being processed`;
+}
+function deliveryDate(words) {
+  // Planning estimate: a reviewer can handle about 2,500 words per working day.
+  const days = Math.max(1, Math.ceil(Math.max(0, Number(words) || 0) / 2500));
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 1);
+  let remaining = days - 1;
+  while (remaining > 0) {
+    date.setDate(date.getDate() + 1);
+    if (date.getDay() !== 0 && date.getDay() !== 6) remaining--;
+  }
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+function fillFormats(select) {
+  select.replaceChildren(...FORMATS.map((format) => el("option", { value: format, selected: format === "PDF (text)" }, format)));
 }
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
@@ -47,9 +64,9 @@ async function process(file) {
     $("error").textContent = "Processing failed. Please try again, or write to contact@data-compiler.com.";
     $("error").hidden = false;
     $("drop").classList.remove("processing-drop");
-    $("drop").querySelector("strong").textContent = "Drop a PDF here";
+    $("drop").querySelector("strong").textContent = "Drop a file here";
     $("drop").querySelector("span").textContent = "or click to upload";
-    $("drop").querySelector("small").hidden = false;
+    $("drop").querySelector("small").hidden = true;
   }
 }
 
@@ -110,7 +127,6 @@ function makeVisualFrame(result) {
     frame.classList.add("missing-preview");
     frame.append(el("span", {}, translation.message || "Translation preview is unavailable."));
   }
-  frame.append(el("div", { className: "gate" }, el("strong", {}, "Full document available after purchase")));
   return frame;
 }
 
@@ -140,7 +156,9 @@ function render(result) {
     ? el("img", { className: "scan-base", src: documentInfo.original_preview.url, alt: "Original unblurred document" })
     : el("span", { className: "missing-source" }, "Original scan unavailable."));
 
+  fillFormats($("transcribe-format"));
   $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
+  $("transcription-delivery").textContent = `Delivery date: ${deliveryDate(words)}`;
   const select = $("target-language");
   const defaultTarget = language.toLowerCase() === "english" ? "French" : "English";
   const selectedTarget = translation.target_language || defaultTarget;
@@ -150,7 +168,9 @@ function render(result) {
     const count = select.value === selectedTarget ? translation.estimated_word_count : null;
     $("translation-stats").replaceChildren(...(count == null ? [] :
       [el("div", {}, el("strong", {}, String(count)), el("span", {}, "estimated words"))]));
+    $("translation-delivery").textContent = `Delivery date: ${deliveryDate(count ?? words)}`;
   };
+  fillFormats($("translation-format"));
   select.onchange = updateTranslationOffer;
   updateTranslationOffer();
 

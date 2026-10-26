@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>DataCompiler — document processing and translation</title>
+  <title>DataCompiler</title>
   <meta name="description" content="Upload a document for transcription and translation.">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4:wght@400;600&display=swap">
@@ -11,33 +11,40 @@
 <body>
   <header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header>
   <main class="wrap">
-    <h1>Document processing and translation</h1>
     <section id="upload-panel" class="upload-panel" aria-label="Upload a document">
       <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose or drop a PDF">
-        <strong>Drop a PDF here</strong><span>or click to upload</span><small>PDF, JPG or PNG</small>
+        <strong>Drop a file here</strong><span>or click to upload</span><small hidden>PDF, JPG or PNG</small>
         <input id="file" type="file" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg" hidden>
       </div>
       <p id="error" class="status warn" hidden role="alert"></p>
     </section>
     <div id="work" class="work" hidden>
       <section class="panel" aria-label="Transcribed document">
-        <div id="source-visual" class="visual-frame"></div>
         <h2 id="source-status" class="result-heading"></h2>
+        <div id="source-visual" class="visual-frame"></div>
         <div class="stats" id="stats"></div>
-        <a id="transcribe-action" class="action-button" href="/pricing.html"></a>
+        <div class="offer-row">
+          <label class="target-language"><span>Transcribe to</span><select id="transcribe-format" aria-label="Transcription format"></select></label>
+          <a id="transcribe-action" class="action-button" href="/pricing.html"></a>
+        </div>
+        <p class="delivery-date" id="transcription-delivery"></p>
       </section>
       <section class="panel" aria-label="Translation result">
         <h2 id="translation-status" class="result-heading"></h2>
         <div id="translation-visual" class="visual-frame"></div>
         <div class="stats translation-stats" id="translation-stats"></div>
         <div class="translation-actions">
-          <label class="target-language"><span>Translate to</span><select id="target-language" aria-label="Translation language"></select></label>
+          <div class="format-controls">
+            <label class="target-language"><span>Translate to</span><select id="target-language" aria-label="Translation language"></select></label>
+            <label class="target-language"><span>Format</span><select id="translation-format" aria-label="Translation format"></select></label>
+          </div>
           <a id="translate-action" class="action-button" href="/pricing.html"></a>
         </div>
+        <p class="delivery-date" id="translation-delivery"></p>
       </section>
     </div>
   </main>
-  <footer><div class="wrap">© DataCompiler · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
+  <footer><div class="wrap"><span>© DataCompiler 2026</span><a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
   <script src="/app.js"></script>
 </body>
 </html>
