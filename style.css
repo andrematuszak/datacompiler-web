@@ -14,8 +14,8 @@ h1{font-size:clamp(30px,4vw,44px);line-height:1.1;letter-spacing:-.03em;margin:4
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;min-width:0;box-shadow:0 8px 28px #1023450a}.result-heading{font-size:18px;min-height:28px;margin-bottom:14px}.result-heading.ok{color:var(--ok)}.result-heading.warn{color:var(--warn)}
 .stats{display:flex;gap:24px;flex-wrap:wrap;padding:0 0 14px}.stats div{display:grid;gap:0}.stats strong{font-size:20px}.stats span{font-size:12px;color:var(--mute)}
 .visual-frame{position:relative;width:100%;aspect-ratio:900/1273;overflow:hidden;border:1px solid var(--line);border-radius:9px;background:#fff;isolation:isolate}.scan-base,.native-page,.text-layer{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}.scan-base{z-index:0}.native-page{z-index:0}
-.scan-fade{background:#fff}.text-layer{z-index:1;object-fit:contain}.source-layer{animation:fade-source 10s infinite}.target-layer{animation:fade-target 10s infinite}
-@keyframes fade-source{0%,40%{opacity:1}50%,90%{opacity:0}100%{opacity:1}}@keyframes fade-target{0%,40%{opacity:0}50%,90%{opacity:1}100%{opacity:0}}
+.scan-fade{background:#fff}.text-layer{z-index:1;object-fit:contain}.source-layer{animation:fade-source 6s infinite}.target-layer{animation:fade-target 6s infinite}
+@keyframes fade-source{0%,45%{opacity:1}50%,95%{opacity:0}100%{opacity:1}}@keyframes fade-target{0%,45%{opacity:0}50%,95%{opacity:1}100%{opacity:0}}
 .gate{position:absolute;z-index:4;inset:auto 0 0;min-height:112px;display:flex;align-items:flex-end;padding:40px 16px 14px;background:linear-gradient(transparent,rgba(255,255,255,.96) 65%);font-size:14px;color:#0F1B33}.gate strong{font-size:15px}
 .missing-preview,.missing-source{position:absolute;inset:0;display:grid;place-items:center;padding:24px;color:var(--mute);text-align:center}.translation-stats{min-height:54px;padding-top:12px}.translation-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px}.target-language{display:flex;align-items:center;gap:9px;font-weight:600}.target-language select{font:inherit;font-weight:400;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 9px;max-width:155px}.action-button{font:inherit;font-weight:700;background:var(--accent);color:#fff;border-radius:9px;padding:12px 18px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:48px;white-space:nowrap;box-shadow:0 3px 8px #2457f533}.action-button:hover{background:color-mix(in srgb,var(--accent) 85%,black)}
 footer{border-top:1px solid var(--line);color:var(--mute);font-size:14px;padding:20px 0}
@@ -39,16 +39,17 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 @media(max-width:760px){.format-controls{gap:10px}.format-controls .target-language{flex-wrap:wrap}.offer-row,.translation-actions{align-items:stretch}.offer-row .action-button,.translation-actions .action-button{width:100%}}
 
 /* Keep the completed result comfortably within a laptop viewport. */
-.wrap{max-width:1440px}
-.work{margin-top:28px;gap:24px}
+.wrap{max-width:1600px}
+.work{margin-top:28px;margin-left:-12px;margin-right:-12px;gap:24px}
 .panel{padding:20px 24px}
-.panel .visual-frame{width:auto;height:min(50vh,560px);max-width:100%;margin-inline:auto}
-.panel .result-heading{margin-top:14px}
-.panel .stats{min-height:54px;padding-top:12px}
+.panel .visual-frame{width:auto;height:clamp(180px,30vh,360px);max-width:100%;margin-inline:auto}
+.panel .result-heading{margin-top:22px}
+.panel .stats{min-height:54px;margin-top:0;padding-top:12px}
 .translation-stats{min-height:54px;padding-top:12px}
-.translation-actions{flex-wrap:nowrap;gap:10px}
-.format-controls{flex-wrap:nowrap;gap:12px;min-width:0}
+.translation-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;flex-wrap:nowrap;gap:10px}
+.format-controls{flex-wrap:nowrap;gap:8px;min-width:0}
 .target-language{gap:6px;white-space:nowrap}
-.target-language select{max-width:130px}
+.target-language select{width:108px;max-width:108px}
+.translation-actions .action-button{padding-inline:12px}
 @media(max-width:1000px){.work{grid-template-columns:1fr}}
-@media(max-width:760px){.panel .visual-frame{height:min(50vh,560px)}.translation-actions,.format-controls{flex-wrap:wrap}}
+@media(max-width:760px){.work{margin-left:0;margin-right:0}.panel .visual-frame{height:clamp(180px,30vh,360px)}.translation-actions{display:flex}.translation-actions,.format-controls{flex-wrap:wrap}.target-language select{width:auto;max-width:130px}}

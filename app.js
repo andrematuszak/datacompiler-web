@@ -2,7 +2,7 @@ const CONFIG = { API_BASE: "https://undergraduate-category-charity-hazards.trycl
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
-const FORMATS = ["PDF (text)", "DOCX", "TXT"];
+const FORMATS = ["PDF (text)", "DOCX", "TXT", "XLIFF"];
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 
@@ -31,8 +31,8 @@ function deliveryDate(words) {
   }
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
-function fillFormats(select) {
-  select.replaceChildren(...FORMATS.map((format) => el("option", { value: format, selected: format === "PDF (text)" }, format)));
+function fillFormats(select, formats = FORMATS) {
+  select.replaceChildren(...formats.map((format) => el("option", { value: format, selected: format === "PDF (text)" }, format)));
 }
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
@@ -156,7 +156,9 @@ function render(result) {
     ? el("img", { className: "scan-base", src: documentInfo.original_preview.url, alt: "Original unblurred document" })
     : el("span", { className: "missing-source" }, "Original scan unavailable."));
 
-  fillFormats($("transcribe-format"));
+  const sourceFormats = [...FORMATS];
+  if (documentInfo.mode === "scan" && kind === "handwriting") sourceFormats.push("PDF (layer)");
+  fillFormats($("transcribe-format"), sourceFormats);
   $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
   $("transcription-delivery").textContent = `Delivery date: ${deliveryDate(words)}`;
   const select = $("target-language");
