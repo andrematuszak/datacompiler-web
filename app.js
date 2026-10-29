@@ -1,4 +1,12 @@
+<<<<<<< Updated upstream
 const CONFIG = { API_BASE: "https://annie-todd-athens-unlikely.trycloudflare.com", DEMO: false };
+=======
+const CONFIG = {
+  API_BASE: "https://specifications-examined-groove-illustration.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "", // Set to the separate Cloudflare URL for datacompiler-api.
+  DEMO: false,
+};
+>>>>>>> Stashed changes
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
@@ -7,6 +15,7 @@ const FIRST_PAGE_ONLY_THRESHOLD = 20 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
+const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -69,17 +78,31 @@ async function process(file) {
     return;
   }
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
+  let firstPageOnlyConfirmed = false;
   if (isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD) {
     const continueWithFirstPage = window.confirm("File is large. Only the first page will be treated. Continue?");
     if (!continueWithFirstPage) {
       input.value = "";
       return;
     }
+    firstPageOnlyConfirmed = true;
   }
   showProcessing();
   try {
-    const result = CONFIG.DEMO ? await demoResult() : await callApi(file);
-    render(result);
+    if (CONFIG.DEMO) {
+      render(await demoResult());
+      return;
+    }
+    const diagnostic = await callDiagnosticApi(file, firstPageOnlyConfirmed);
+    if (diagnostic && !diagnostic.fallbackToLegacy) {
+      if (diagnostic.document?.mode === "native") {
+        render(await callApi(file));
+      } else {
+        if (!diagnostic.renderedInProgress) renderDiagnostic(diagnostic, diagnosticApiBase());
+      }
+      return;
+    }
+    render(await callApi(file));
   } catch (error) {
     console.error(error);
     $("error").textContent = "Processing failed. Please try again, or write to contact@data-compiler.com.";
@@ -102,7 +125,7 @@ async function demoResult() {
 }
 
 async function callApi(file) {
-  const api = CONFIG.API_BASE.replace(/\/+$/, "");
+  const api = CONFIG.API_BASE.trim().replace(/\/+$/, "");
   const form = new FormData(); form.append("file", file);
   const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form });
   if (!uploaded.ok) throw new Error(`Upload failed: HTTP ${uploaded.status}`);
@@ -125,6 +148,178 @@ async function callApi(file) {
   throw new Error("Processing timed out");
 }
 
+async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
+  const api = diagnosticApiBase();
+  const form = new FormData();
+  form.append("file", file);
+  form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
+  let uploaded;
+  try {
+    uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form });
+  } catch (error) {
+    console.info("Diagnostic API is not routed yet; using the existing processing API.", error);
+    return { fallbackToLegacy: true };
+  }
+  if ([404, 405, 501].includes(uploaded.status)) return { fallbackToLegacy: true };
+  if (uploaded.status === 409) {
+    const detail = await uploaded.json().catch(() => ({}));
+    if (detail.detail?.code === "first_page_confirmation_required") {
+      const confirmed = window.confirm(detail.detail.message || "Only the first page will be treated. Continue?");
+      if (!confirmed) throw new Error("First-page-only processing was cancelled.");
+      return callDiagnosticApi(file, true);
+    }
+  }
+  if (!uploaded.ok) throw new Error(`Diagnostic upload failed: HTTP ${uploaded.status}`);
+  const uploadResult = await uploaded.json();
+  const jobId = uploadResult.job_id;
+  if (!jobId) return { fallbackToLegacy: true };
+
+  let lastPreviewState = "";
+  for (let attempt = 0; attempt < 180; attempt++) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, 750));
+    const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
+    if (!response.ok) throw new Error(`Diagnostic status failed: HTTP ${response.status}`);
+    const diagnostic = await response.json();
+    if (diagnostic.status === "error") return { fallbackToLegacy: true };
+    if (diagnostic.document?.mode === "native" && diagnostic.status === "preview_ready") {
+      return { fallbackToLegacy: true };
+    }
+    if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !diagnostic.preview?.word_boxes?.length) {
+      return { fallbackToLegacy: true };
+    }
+    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}`;
+    if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && previewState !== lastPreviewState) {
+      renderDiagnostic(diagnostic, api);
+      lastPreviewState = previewState;
+    }
+    if (diagnostic.status === "done") {
+      if (diagnostic.document?.mode === "native") return { fallbackToLegacy: true };
+      if (diagnostic.document?.mode === "scan" &&
+          (!diagnostic.preview?.word_boxes?.length || diagnostic.translation_status !== "ready")) {
+        return { fallbackToLegacy: true };
+      }
+      if (diagnostic.document?.mode === "scan") renderDiagnostic(diagnostic, api);
+      return { ...diagnostic, renderedInProgress: diagnostic.document?.mode === "scan" };
+    }
+  }
+  throw new Error("Diagnostic processing timed out");
+}
+
+function artifactUrl(api, path) {
+  return path ? new URL(path, `${api}/`).href : "";
+}
+
+function renderDiagnostic(diagnostic, api) {
+  const documentInfo = diagnostic.document || {};
+  const preview = diagnostic.preview || {};
+  const targets = diagnostic.translations || [];
+  const firstTarget = targets[0] || {};
+  const normalized = {
+    fastDiagnostic: diagnostic,
+    document: {
+      ...documentInfo,
+      kind: documentInfo.mode === "scan" ? "handwriting" : "other",
+      original_preview: {
+        url: artifactUrl(api, preview.original_png_url),
+        width: preview.width,
+        height: preview.height,
+      },
+    },
+    transcription: { status: "needs_review" },
+    translation: {
+      status: diagnostic.translation_status === "unavailable" ? "error" :
+        diagnostic.status === "preview_ready" ? "processing" : "needs_review",
+      target_language: firstTarget.language,
+      preview: {
+        source_text_url: artifactUrl(api, preview.source_text_png_url),
+        target_text_url: artifactUrl(api, firstTarget.sample_png_url),
+      },
+    },
+    targetPreviews: targets.map((target) => ({
+      language: target.language,
+      url: artifactUrl(api, target.sample_png_url),
+    })),
+  };
+  render(normalized);
+}
+
+function makeFlowArrow(label) {
+  return el("div", { className: "flow-arrow", "aria-label": label },
+    el("span", { "aria-hidden": "true" }, "→"), el("small", {}, label));
+}
+
+function makeOcrOverlay(boxes, granularity) {
+  const overlay = el("svg", {
+    className: "ocr-box-overlay",
+    viewBox: "0 0 1 1",
+    preserveAspectRatio: "none",
+    role: "img",
+    "aria-label": `OCR detection boxes, ${granularity || "unknown"} level`,
+  });
+  const valid = (boxes || []).filter((box) =>
+    [box.x, box.y, box.width, box.height].every(Number.isFinite) &&
+    box.width > 0 && box.height > 0 && box.x >= 0 && box.y >= 0 &&
+    box.x + box.width <= 1.01 && box.y + box.height <= 1.01);
+  const cycle = Math.max(3, valid.length * 0.07 + 1);
+  overlay.style.setProperty("--box-cycle", `${cycle}s`);
+  valid.forEach((box, index) => {
+    const rect = el("rect", {
+      className: "ocr-box",
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      rx: 0.004,
+      "aria-hidden": "true",
+    });
+    rect.style.setProperty("--box-delay", `${index * 0.07}s`);
+    overlay.append(rect);
+  });
+  return overlay;
+}
+
+function makeDiagnosticSourceFlow(result) {
+  const info = result.document || {};
+  const preview = result.fastDiagnostic?.preview || {};
+  const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
+  const source = el("div", { className: "flow-page" },
+    el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
+  const detected = el("div", { className: "flow-page ocr-page" },
+    el("img", { src: info.original_preview.url, alt: "First page with OCR boxes animated in reading order" }),
+    makeOcrOverlay(preview.word_boxes, preview.box_granularity));
+  source.style.setProperty("--page-ratio", pageRatio);
+  detected.style.setProperty("--page-ratio", pageRatio);
+  return el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("OCR"), detected);
+}
+
+function makeDiagnosticTranslationFlow(result) {
+  const info = result.document || {};
+  const preview = result.fastDiagnostic?.preview || {};
+  const targets = result.targetPreviews || [];
+  const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
+  const source = el("div", { className: "flow-page text-preview" },
+    preview.source_text_png_url
+      ? el("img", { src: artifactUrl(diagnosticApiBase(), preview.source_text_png_url), alt: `${info.source_language || "Source"} transcription preview` })
+      : el("span", { className: "missing-source" }, "Preparing source text preview…"));
+  const targetPage = el("div", { className: "flow-page target-preview" });
+  source.style.setProperty("--page-ratio", pageRatio);
+  targetPage.style.setProperty("--page-ratio", pageRatio);
+  if (targets.length) {
+    targets.forEach((target, index) => {
+      const image = el("img", { src: target.url, alt: `${target.language} translation preview`, className: `target-sample target-sample-${index}` });
+      image.style.setProperty("--sample-delay", `${index * 3}s`);
+      targetPage.append(image);
+    });
+    if (targets.length === 1) targetPage.classList.add("single-target");
+  } else {
+    const message = result.translation?.status === "error"
+      ? "Translation preview is unavailable."
+      : "Translation preview is processing…";
+    targetPage.append(el("span", { className: "missing-preview" }, message));
+  }
+  return el("div", { className: "flow-row translation-flow" }, source, makeFlowArrow("Translate"), targetPage);
+}
+
 function makeVisualFrame(result) {
   const documentInfo = result.document || {};
   const translation = result.translation || {};
@@ -133,6 +328,11 @@ function makeVisualFrame(result) {
   const original = documentInfo.original_preview || {};
   const width = original.width || 900, height = original.height || 1273;
   frame.style.aspectRatio = `${width} / ${height}`;
+
+  if (result.fastDiagnostic) {
+    frame.append(makeDiagnosticTranslationFlow(result));
+    return frame;
+  }
 
   if (documentInfo.mode === "scan" || preview.mode === "scan_text_fade") {
     frame.classList.add("scan-fade");
@@ -166,19 +366,28 @@ function render(result) {
   const metrics = [
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
     el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
-  const reduction = Math.max(0, Number(documentInfo.reduction_percent) || 0);
+  const reduction = Number(documentInfo.reduction_percent);
   const diagnosticSize = documentInfo.diagnostic_input_size_bytes ?? documentInfo.original_file_size_bytes;
   const processedPageNote = documentInfo.first_page_only ? " Only the first page was processed." : "";
   const sizeDetails = `Estimated output size: ${formatFileSize(documentInfo.processed_file_size_bytes)}; processed input: ${formatFileSize(diagnosticSize)}; uploaded file: ${formatFileSize(documentInfo.original_file_size_bytes)}.${processedPageNote}`;
-  metrics.push(el("div", { className: `size-reduction${reduction > 0 ? " reduced" : ""}`, title: sizeDetails, "aria-label": `${reduction}% smaller. ${sizeDetails}` },
-    el("strong", {}, `${reduction}%`), el("span", {}, "smaller")));
+  if (documentInfo.reduction_percent !== null && documentInfo.reduction_percent !== undefined && Number.isFinite(reduction)) {
+    const visibleReduction = Math.max(0, reduction);
+    metrics.push(el("div", { className: `size-reduction${visibleReduction > 0 ? " reduced" : ""}`, title: sizeDetails, "aria-label": `${visibleReduction}% smaller. ${sizeDetails}` },
+      el("strong", {}, `${visibleReduction}%`), el("span", {}, "smaller")));
+  }
   $("stats").replaceChildren(...metrics);
 
   const source = $("source-visual");
   source.style.aspectRatio = `${documentInfo.original_preview?.width || 900} / ${documentInfo.original_preview?.height || 1273}`;
-  source.replaceChildren(documentInfo.original_preview?.url
-    ? el("img", { className: "scan-base", src: documentInfo.original_preview.url, alt: "Original unblurred document" })
-    : el("span", { className: "missing-source" }, "Original scan unavailable."));
+  if (result.fastDiagnostic) {
+    source.classList.add("diagnostic-flow-frame");
+    source.replaceChildren(makeDiagnosticSourceFlow(result));
+  } else {
+    source.classList.remove("diagnostic-flow-frame");
+    source.replaceChildren(documentInfo.original_preview?.url
+      ? el("img", { className: "scan-base", src: documentInfo.original_preview.url, alt: "Original unblurred document" })
+      : el("span", { className: "missing-source" }, "Original scan unavailable."));
+  }
 
   const sourceFormats = [...FORMATS];
   const hasHandwritingLayer = documentInfo.mode === "scan" && kind === "handwriting";
