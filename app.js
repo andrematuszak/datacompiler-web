@@ -3,6 +3,8 @@ const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
 const FORMATS = ["PDF (text)", "DOCX", "TXT", "XLIFF"];
+const FIRST_PAGE_ONLY_THRESHOLD = 20 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 
@@ -10,6 +12,12 @@ function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
   children.flat().filter((child) => child !== null && child !== undefined).forEach((child) => node.append(child));
   return node;
+}
+function formatFileSize(bytes) {
+  if (bytes == null || !Number.isFinite(Number(bytes))) return "not available";
+  const size = Number(bytes) || 0;
+  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 function price(words, kind, service) { return euros((words || 0) * RATE[service] * (DIFFICULTY[kind] || 1)); }
 function statusText(state, noun) {
@@ -31,8 +39,8 @@ function deliveryDate(words) {
   }
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
-function fillFormats(select, formats = FORMATS) {
-  select.replaceChildren(...formats.map((format) => el("option", { value: format, selected: format === "PDF (text)" }, format)));
+function fillFormats(select, formats = FORMATS, defaultFormat = "PDF (text)") {
+  select.replaceChildren(...formats.map((format) => el("option", { value: format, selected: format === defaultFormat }, format)));
 }
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
@@ -55,6 +63,19 @@ function showProcessing() {
 }
 
 async function process(file) {
+  if (file.size > MAX_UPLOAD_SIZE) {
+    window.alert("File is too large. The upload limit is 100 MB.");
+    input.value = "";
+    return;
+  }
+  const isPdf = file.name.toLowerCase().endsWith(".pdf");
+  if (isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD) {
+    const continueWithFirstPage = window.confirm("File is large. Only the first page will be treated. Continue?");
+    if (!continueWithFirstPage) {
+      input.value = "";
+      return;
+    }
+  }
   showProcessing();
   try {
     const result = CONFIG.DEMO ? await demoResult() : await callApi(file);
@@ -145,9 +166,12 @@ function render(result) {
   const metrics = [
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
     el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
-  if (Number(documentInfo.reduction_percent) > 0) {
-    metrics.push(el("div", {}, el("strong", {}, `${documentInfo.reduction_percent}%`), el("span", {}, "size reduction")));
-  }
+  const reduction = Math.max(0, Number(documentInfo.reduction_percent) || 0);
+  const diagnosticSize = documentInfo.diagnostic_input_size_bytes ?? documentInfo.original_file_size_bytes;
+  const processedPageNote = documentInfo.first_page_only ? " Only the first page was processed." : "";
+  const sizeDetails = `Estimated output size: ${formatFileSize(documentInfo.processed_file_size_bytes)}; processed input: ${formatFileSize(diagnosticSize)}; uploaded file: ${formatFileSize(documentInfo.original_file_size_bytes)}.${processedPageNote}`;
+  metrics.push(el("div", { className: `size-reduction${reduction > 0 ? " reduced" : ""}`, title: sizeDetails, "aria-label": `${reduction}% smaller. ${sizeDetails}` },
+    el("strong", {}, `${reduction}%`), el("span", {}, "smaller")));
   $("stats").replaceChildren(...metrics);
 
   const source = $("source-visual");
@@ -157,8 +181,9 @@ function render(result) {
     : el("span", { className: "missing-source" }, "Original scan unavailable."));
 
   const sourceFormats = [...FORMATS];
-  if (documentInfo.mode === "scan" && kind === "handwriting") sourceFormats.push("PDF (layer)");
-  fillFormats($("transcribe-format"), sourceFormats);
+  const hasHandwritingLayer = documentInfo.mode === "scan" && kind === "handwriting";
+  if (hasHandwritingLayer) sourceFormats.push("PDF (layer)");
+  fillFormats($("transcribe-format"), sourceFormats, hasHandwritingLayer ? "PDF (layer)" : "PDF (text)");
   $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
   $("transcription-delivery").textContent = `Delivery date: ${deliveryDate(words)}`;
   const select = $("target-language");

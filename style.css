@@ -52,4 +52,7 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .target-language select{width:108px;max-width:108px}
 .translation-actions .action-button{padding-inline:12px}
 @media(max-width:1000px){.work{grid-template-columns:1fr}}
-@media(max-width:760px){.work{margin-left:0;margin-right:0}.panel .visual-frame{height:clamp(180px,30vh,360px)}.translation-actions{display:flex}.translation-actions,.format-controls{flex-wrap:wrap}.target-language select{width:auto;max-width:130px}}
+@media(max-width:760px){.work{margin-left:0;margin-right:0}.panel .visual-frame{height:clamp(180px,30vh,360px)}.translation-actions{display:flex}.translation-actions,.format-controls{flex-wrap:wrap}}
+.panel .result-heading{text-align:center}
+.target-language select{width:136px;max-width:136px;font-size:14px}
+.size-reduction.reduced strong::before{content:"↓";color:var(--ok);margin-right:4px}
