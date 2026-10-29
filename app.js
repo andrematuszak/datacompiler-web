@@ -1,4 +1,4 @@
-const CONFIG = { API_BASE: "https://vitamin-chains-establishment-shed.trycloudflare.com", DEMO: false };
+const CONFIG = { API_BASE: " https://specifications-examined-groove-illustration.trycloudflare.com", DEMO: false };
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
