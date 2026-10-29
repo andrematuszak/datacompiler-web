@@ -1,12 +1,8 @@
-<<<<<<< Updated upstream
-const CONFIG = { API_BASE: "https://annie-todd-athens-unlikely.trycloudflare.com", DEMO: false };
-=======
 const CONFIG = {
-  API_BASE: "https://specifications-examined-groove-illustration.trycloudflare.com",
+  API_BASE: "https://lightning-washer-wildlife-diving.trycloudflare.com",
   DIAGNOSTIC_API_BASE: "", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
->>>>>>> Stashed changes
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
