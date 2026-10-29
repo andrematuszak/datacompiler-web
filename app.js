@@ -1,5 +1,5 @@
 const CONFIG = {
-  API_BASE: "https://leader-coal-promise-neil.trycloudflare.com",
+  API_BASE: "",
   DIAGNOSTIC_API_BASE: "https://leader-coal-promise-neil.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
