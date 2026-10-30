@@ -67,6 +67,18 @@ function showProcessing() {
   drop.querySelector("small").hidden = true;
 }
 
+function updateProcessingStage(stage) {
+  const messages = {
+    queued: "Upload received; preparing the page…",
+    opening: "Opening the document…",
+    extracting_text: "Reading the document text…",
+    ocr: "Recognizing text on the first page…",
+    preparing_preview: "Preparing your preview…",
+    translation: "Translating the preview…",
+  };
+  $("drop").querySelector("span").textContent = messages[stage] || "Your document is being processed";
+}
+
 async function process(file) {
   if (file.size > MAX_UPLOAD_SIZE) {
     window.alert("File is too large. The upload limit is 100 MB.");
@@ -92,17 +104,21 @@ async function process(file) {
     const diagnostic = await callDiagnosticApi(file, firstPageOnlyConfirmed);
     if (diagnostic && !diagnostic.fallbackToLegacy) {
       if (diagnostic.document?.mode === "native") {
+        if (!CONFIG.API_BASE.trim()) throw new Error("This PDF contains native text. A rebuilt translation preview is not available from the diagnostic API yet.");
         render(await callApi(file));
-      } else {
-        if (!diagnostic.renderedInProgress) renderDiagnostic(diagnostic, diagnosticApiBase());
+      } else if (!diagnostic.renderedInProgress) {
+        renderDiagnostic(diagnostic, diagnosticApiBase());
       }
       return;
     }
+    if (!CONFIG.API_BASE.trim()) throw new Error(diagnostic?.fallbackReason || "The diagnostic API could not produce a preview. Check its server log.");
     render(await callApi(file));
   } catch (error) {
     console.error(error);
-    $("error").textContent = "Processing failed. Please try again, or write to contact@data-compiler.com.";
+    $("error").textContent = `${error.message || "Processing failed."} Please try again, or write to contact@data-compiler.com.`;
     $("error").hidden = false;
+    $("work").hidden = true;
+    $("upload-panel").hidden = false;
     $("drop").classList.remove("processing-drop");
     $("drop").querySelector("strong").textContent = "Drop a file here";
     $("drop").querySelector("span").textContent = "or click to upload";
@@ -122,6 +138,7 @@ async function demoResult() {
 
 async function callApi(file) {
   const api = CONFIG.API_BASE.trim().replace(/\/+$/, "");
+  if (!api) throw new Error("The full-processing API is not configured.");
   const form = new FormData(); form.append("file", file);
   const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form });
   if (!uploaded.ok) throw new Error(`Upload failed: HTTP ${uploaded.status}`);
@@ -154,9 +171,9 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form });
   } catch (error) {
     console.info("Diagnostic API is not routed yet; using the existing processing API.", error);
-    return { fallbackToLegacy: true };
+    return { fallbackToLegacy: true, fallbackReason: "Could not connect to the diagnostic API. Check the tunnel URL and port 8000 service." };
   }
-  if ([404, 405, 501].includes(uploaded.status)) return { fallbackToLegacy: true };
+  if ([404, 405, 501].includes(uploaded.status)) return { fallbackToLegacy: true, fallbackReason: `The API is reachable, but POST /v1/diagnostics returned HTTP ${uploaded.status}.` };
   if (uploaded.status === 409) {
     const detail = await uploaded.json().catch(() => ({}));
     if (detail.detail?.code === "first_page_confirmation_required") {
@@ -168,7 +185,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
   if (!uploaded.ok) throw new Error(`Diagnostic upload failed: HTTP ${uploaded.status}`);
   const uploadResult = await uploaded.json();
   const jobId = uploadResult.job_id;
-  if (!jobId) return { fallbackToLegacy: true };
+  if (!jobId) return { fallbackToLegacy: true, fallbackReason: "The diagnostic API did not return a job id." };
 
   let lastPreviewState = "";
   for (let attempt = 0; attempt < 180; attempt++) {
@@ -176,12 +193,13 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
     if (!response.ok) throw new Error(`Diagnostic status failed: HTTP ${response.status}`);
     const diagnostic = await response.json();
-    if (diagnostic.status === "error") return { fallbackToLegacy: true };
+    if (diagnostic.status === "error") return { fallbackToLegacy: true, fallbackReason: diagnostic.message || "The diagnostic API job failed. Check its server log." };
+    if (diagnostic.status === "processing") updateProcessingStage(diagnostic.stage);
     if (diagnostic.document?.mode === "native" && diagnostic.status === "preview_ready") {
-      return { fallbackToLegacy: true };
+      return { fallbackToLegacy: true, fallbackReason: "This PDF contains native text; the fast API does not yet build a faithful translated PDF preview." };
     }
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !diagnostic.preview?.word_boxes?.length) {
-      return { fallbackToLegacy: true };
+      return { fallbackToLegacy: true, fallbackReason: "The OCR service returned no usable detection boxes. Check the Vision worker log." };
     }
     const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${diagnostic.preview?.animation_status || ""}`;
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && previewState !== lastPreviewState) {
@@ -189,10 +207,10 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
       lastPreviewState = previewState;
     }
     if (diagnostic.status === "done") {
-      if (diagnostic.document?.mode === "native") return { fallbackToLegacy: true };
+      if (diagnostic.document?.mode === "native") return { fallbackToLegacy: true, fallbackReason: "This PDF contains native text; the fast API does not yet build a faithful translated PDF preview." };
       if (diagnostic.document?.mode === "scan" &&
           (!diagnostic.preview?.word_boxes?.length || diagnostic.translation_status !== "ready")) {
-        return { fallbackToLegacy: true };
+        return { fallbackToLegacy: true, fallbackReason: "OCR or translation returned no preview. Check the API log and its provider configuration." };
       }
       if (diagnostic.document?.mode === "scan") renderDiagnostic(diagnostic, api);
       return { ...diagnostic, renderedInProgress: diagnostic.document?.mode === "scan" };
