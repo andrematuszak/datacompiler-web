@@ -1,5 +1,5 @@
 const CONFIG = {
-  API_BASE: "",
+  API_BASE: "  https://gba-electronic-patent-terminal.trycloudflare.com",
   DIAGNOSTIC_API_BASE: "https://education-equal-museum-feet.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
