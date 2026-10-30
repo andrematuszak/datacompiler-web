@@ -24,7 +24,7 @@
         <h2 id="source-status" class="result-heading"></h2>
         <div class="stats" id="stats"></div>
         <div class="offer-row">
-          <label class="target-language"><span>Transcribe to</span><select id="transcribe-format" aria-label="Transcription format"></select></label>
+          <div class="target-language"><span>Transcribe to</span><div id="transcribe-format" class="multi-select" aria-label="Transcription formats"></div></div>
           <a id="transcribe-action" class="action-button" href="/pricing.html"></a>
         </div>
         <p class="delivery-date" id="transcription-delivery"></p>
@@ -35,8 +35,8 @@
         <div class="stats translation-stats" id="translation-stats"></div>
         <div class="translation-actions">
           <div class="format-controls">
-            <label class="target-language"><span>Translate to</span><select id="target-language" aria-label="Translation language"></select></label>
-            <label class="target-language"><span>Format</span><select id="translation-format" aria-label="Translation format"></select></label>
+            <div class="target-language"><span>Translate to</span><div id="target-language" class="multi-select" aria-label="Translation languages"></div></div>
+            <div class="target-language"><span>Format</span><div id="translation-format" class="multi-select" aria-label="Translation formats"></div></div>
           </div>
           <a id="translate-action" class="action-button" href="/pricing.html"></a>
         </div>
