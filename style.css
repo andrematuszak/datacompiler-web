@@ -81,3 +81,28 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .flow-page>img.scan-anim{object-fit:fill}
 .flow-page.anim-pending>img{filter:grayscale(1);opacity:.55}
 .anim-caption{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;font-weight:700;color:var(--ink);text-shadow:0 0 6px var(--panel)}
+
+/* ===== Layout fixes: separate page boxes, rounder arrow, no overlap on small screens ===== */
+
+/* 1) The grey frame around the 2 PNGs goes away: each PNG sits in its own box (left and right panels). */
+.panel .visual-frame:has(>.flow-row){
+  --page-h:clamp(190px,34vh,380px);              /* target height of one page box */
+  width:min(100%,calc(var(--page-h)*1.5 + 96px));  /* 2 pages (ratio ~.75) + arrow + gaps */
+  height:auto;aspect-ratio:auto!important;margin-inline:auto;
+  padding:0;border:0;border-radius:0;background:transparent;overflow:visible;
+}
+.flow-row{height:auto;align-items:center;gap:clamp(8px,1.6vw,20px)}
+.flow-page{
+  flex:1 1 0;width:auto;height:auto;max-width:none;min-width:0;
+  aspect-ratio:var(--page-ratio,.75);
+  border-radius:10px;box-shadow:0 6px 18px #10234514;
+}
+.flow-arrow{flex:0 0 clamp(46px,9%,70px)}
+.flow-arrow svg{filter:drop-shadow(0 3px 3px rgba(15,27,51,.18))}
+
+/* 2) Buttons and drop-downs wrap instead of overlapping when the window gets narrower. */
+.translation-actions,.offer-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px}
+.format-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.target-language{flex-wrap:nowrap}
+.target-language select{width:auto;min-width:0;max-width:136px}
+.translation-actions .action-button,.offer-row .action-button{flex:0 0 auto}

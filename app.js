@@ -273,8 +273,8 @@ function makeFlowArrow(label) {
     svgEl("stop", { offset: "0", "stop-color": "#D4DAE4" }),
     svgEl("stop", { offset: "1", "stop-color": "#A9B3C3" }));
   const arrow = svgEl("path", {
-    d: "M6 15H40V5L68 22L40 39V29H6Z",
-    fill: `url(#${id})`, stroke: `url(#${id})`, "stroke-width": "6", "stroke-linejoin": "round",
+    d: "M10 17H43V9L59 22L43 35V27H10Z",
+    fill: `url(#${id})`, stroke: `url(#${id})`, "stroke-width": "10", "stroke-linejoin": "round", "stroke-linecap": "round"
   });
   const svg = svgEl("svg", { viewBox: "0 0 72 44", "aria-hidden": "true", focusable: "false" }, svgEl("defs", {}, gradient), arrow);
   return el("div", { className: "flow-arrow", "aria-label": label }, svg, el("small", {}, label));
