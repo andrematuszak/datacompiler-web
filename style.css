@@ -73,3 +73,11 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .single-target .target-sample{opacity:1;animation:none}
 @keyframes target-sample-cycle{0%,48%{opacity:1}50%,98%{opacity:0}100%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.ocr-box,.target-sample{animation:none}.ocr-box{opacity:.75}.target-sample-0{opacity:1}.target-sample-1{opacity:0}}
+
+/* Installer-style arrow between the two pages, and the word-highlight GIF. */
+.flow-arrow{flex-basis:clamp(48px,9%,76px)}
+.flow-arrow svg{display:block;width:100%;height:auto;overflow:visible;filter:drop-shadow(0 2px 2px rgba(15,27,51,.22))}
+.flow-arrow small{margin-top:4px}
+.flow-page>img.scan-anim{object-fit:fill}
+.flow-page.anim-pending>img{filter:grayscale(1);opacity:.55}
+.anim-caption{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;font-weight:700;color:var(--ink);text-shadow:0 0 6px var(--panel)}

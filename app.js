@@ -1,6 +1,6 @@
 const CONFIG = {
   API_BASE: "",
-  DIAGNOSTIC_API_BASE: "https://terrorist-phentermine-submissions-organization.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  DIAGNOSTIC_API_BASE: "https://corporations-incl-stability-taste.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
@@ -183,7 +183,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !diagnostic.preview?.word_boxes?.length) {
       return { fallbackToLegacy: true };
     }
-    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}`;
+    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${diagnostic.preview?.animation_status || ""}`;
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && previewState !== lastPreviewState) {
       renderDiagnostic(diagnostic, api);
       lastPreviewState = previewState;
@@ -239,14 +239,33 @@ function renderDiagnostic(diagnostic, api) {
   render(normalized);
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);   // SVG needs its own namespace, el() would not render
+  Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, value));
+  children.forEach((child) => node.append(child));
+  return node;
+}
+
+let arrowCount = 0;
 function makeFlowArrow(label) {
-  return el("div", { className: "flow-arrow", "aria-label": label },
-    el("span", { "aria-hidden": "true" }, "→"), el("small", {}, label));
+  // Chunky rounded arrow, like the one in a macOS "drag to Applications" installer window.
+  const id = `flow-arrow-gradient-${arrowCount++}`;
+  const gradient = svgEl("linearGradient", { id, x1: "0", y1: "0", x2: "0", y2: "1" },
+    svgEl("stop", { offset: "0", "stop-color": "#D4DAE4" }),
+    svgEl("stop", { offset: "1", "stop-color": "#A9B3C3" }));
+  const arrow = svgEl("path", {
+    d: "M6 15H40V5L68 22L40 39V29H6Z",
+    fill: `url(#${id})`, stroke: `url(#${id})`, "stroke-width": "6", "stroke-linejoin": "round",
+  });
+  const svg = svgEl("svg", { viewBox: "0 0 72 44", "aria-hidden": "true", focusable: "false" }, svgEl("defs", {}, gradient), arrow);
+  return el("div", { className: "flow-arrow", "aria-label": label }, svg, el("small", {}, label));
 }
 
 function makeOcrOverlay(boxes, granularity) {
-  const overlay = el("svg", {
-    className: "ocr-box-overlay",
+  // Static fallback when the GIF is unavailable (or when reduced motion is requested).
+  const overlay = svgEl("svg", {
+    class: "ocr-box-overlay",
     viewBox: "0 0 1 1",
     preserveAspectRatio: "none",
     role: "img",
@@ -259,14 +278,8 @@ function makeOcrOverlay(boxes, granularity) {
   const cycle = Math.max(3, valid.length * 0.07 + 1);
   overlay.style.setProperty("--box-cycle", `${cycle}s`);
   valid.forEach((box, index) => {
-    const rect = el("rect", {
-      className: "ocr-box",
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      rx: 0.004,
-      "aria-hidden": "true",
+    const rect = svgEl("rect", {
+      class: "ocr-box", x: box.x, y: box.y, width: box.width, height: box.height, rx: 0.004, "aria-hidden": "true",
     });
     rect.style.setProperty("--box-delay", `${index * 0.07}s`);
     overlay.append(rect);
@@ -274,18 +287,39 @@ function makeOcrOverlay(boxes, granularity) {
   return overlay;
 }
 
-function makeDiagnosticSourceFlow(result) {
+function diagnosticAnimState(result) {
+  const preview = result.fastDiagnostic?.preview || {};
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const url = preview.animation_status === "ready" && preview.animation_gif_url && !reduceMotion
+    ? artifactUrl(diagnosticApiBase(), preview.animation_gif_url) : "";
+  const state = url ? "ready" : (preview.animation_status === "processing" ? "processing" : "unavailable");
+  // The key identifies what the left row shows, so a re-render does not restart the GIF.
+  return { state, url, key: `${result.fastDiagnostic?.job_id || ""}:${state}:${url}` };
+}
+
+function makeDiagnosticSourceFlow(result, anim) {
   const info = result.document || {};
   const preview = result.fastDiagnostic?.preview || {};
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page" },
     el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
-  const detected = el("div", { className: "flow-page ocr-page" },
-    el("img", { src: info.original_preview.url, alt: "First page with OCR boxes animated in reading order" }),
-    makeOcrOverlay(preview.word_boxes, preview.box_granularity));
+  const detected = el("div", { className: "flow-page ocr-page" });
+  if (anim.state === "ready") {
+    detected.append(el("img", { className: "scan-anim", src: anim.url, alt: "First page with the detected words highlighted one after the other" }));
+  } else {
+    detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
+    if (anim.state === "processing") {
+      detected.classList.add("anim-pending");
+      detected.append(el("span", { className: "anim-caption" }, "Detecting words…"));
+    } else {
+      detected.append(makeOcrOverlay(preview.word_boxes, preview.box_granularity));
+    }
+  }
   source.style.setProperty("--page-ratio", pageRatio);
   detected.style.setProperty("--page-ratio", pageRatio);
-  return el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("OCR"), detected);
+  const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("OCR"), detected);
+  row.dataset.anim = anim.key;
+  return row;
 }
 
 function makeDiagnosticTranslationFlow(result) {
@@ -377,7 +411,11 @@ function render(result) {
   source.style.aspectRatio = `${documentInfo.original_preview?.width || 900} / ${documentInfo.original_preview?.height || 1273}`;
   if (result.fastDiagnostic) {
     source.classList.add("diagnostic-flow-frame");
-    source.replaceChildren(makeDiagnosticSourceFlow(result));
+    const anim = diagnosticAnimState(result);
+    const currentRow = source.querySelector(".source-flow");
+    if (!currentRow || currentRow.dataset.anim !== anim.key) {   // same key = leave the GIF playing
+      source.replaceChildren(makeDiagnosticSourceFlow(result, anim));
+    }
   } else {
     source.classList.remove("diagnostic-flow-frame");
     source.replaceChildren(documentInfo.original_preview?.url
