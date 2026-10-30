@@ -1,6 +1,6 @@
 const CONFIG = {
   API_BASE: "",
-  DIAGNOSTIC_API_BASE: "https://pupils-proceeding-belong-roughly.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  DIAGNOSTIC_API_BASE: "https://education-equal-museum-feet.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
