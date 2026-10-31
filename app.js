@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "  https://gba-electronic-patent-terminal.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://opened-hon-renewal-hired.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://opened-hon-renewal-hired.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://reminder-recreation-gordon-bibliography.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
