@@ -119,9 +119,10 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .target-layer{animation-delay:var(--sample-delay,0s)}
 .multi-native-preview .native-page{opacity:0;animation:target-sample-cycle 6s infinite;animation-delay:var(--sample-delay,0s)}
 .multi-native-preview .native-page:first-child{animation-delay:0s}
-.translation-progress{display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 5%,var(--panel));color:var(--accent);font-size:clamp(24px,3vw,38px);font-weight:700;text-align:center}
+.translation-progress{display:flex;align-items:flex-end;justify-content:center;background:transparent!important;border:0!important;color:#0F1B33;font-size:18px;font-weight:700;text-align:center;overflow:visible}
+.panel .visual-frame.translation-progress{height:calc(clamp(190px,34vh,380px) + 50px);margin:0;border-radius:0;padding:0}
 [hidden]{display:none!important}
-.progress-heading{color:var(--accent)}
+.progress-heading{color:#0F1B33}
 .panel:has(.translation-progress) .translation-actions{display:none}
 .panel:has(.translation-progress) .translation-stats,.panel:has(.translation-progress) #translation-delivery{display:none}
 @media(max-width:760px){.multi-select-wrap{min-width:155px}.translation-actions .format-controls{width:100%}}

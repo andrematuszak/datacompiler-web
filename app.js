@@ -11,7 +11,6 @@ const FORMATS = ["PDF (text)", "DOCX", "TXT", "XLIFF"];
 const FIRST_PAGE_ONLY_THRESHOLD = 20 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
-const selections = { transcriptionFormats: ["PDF (text)"], languages: [], translationFormats: ["PDF (text)"] };
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
 
@@ -46,25 +45,8 @@ function deliveryDate(words) {
   }
   return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
-function multiSelect(container, options, selected, onChange) {
-  const wrap = el("div", { className: "multi-select-wrap" });
-  const trigger = el("button", { type: "button", className: "multi-select-trigger", "aria-expanded": "false" });
-  const menu = el("div", { className: "multi-select-menu", hidden: true, role: "group" });
-  const refresh = () => {
-    trigger.replaceChildren(...(selected.length ? selected.map((item) => el("span", { className: "selection-chip" }, item)) : [el("span", {}, "Choose…")]));
-    menu.replaceChildren(...options.map((item) => {
-      const option = el("button", { type: "button", className: `multi-option${selected.includes(item) ? " selected" : ""}`, "aria-pressed": String(selected.includes(item)) }, item);
-      option.onclick = () => {
-        if (selected.includes(item)) { if (selected.length > 1) selected.splice(selected.indexOf(item), 1); }
-        else selected.push(item);
-        refresh(); onChange();
-      };
-      return option;
-    }));
-  };
-  trigger.onclick = () => { menu.hidden = !menu.hidden; trigger.setAttribute("aria-expanded", String(!menu.hidden)); };
-  document.addEventListener("click", (event) => { if (!wrap.contains(event.target)) { menu.hidden = true; trigger.setAttribute("aria-expanded", "false"); } });
-  wrap.append(trigger, menu); container.replaceChildren(wrap); refresh();
+function fillSelect(select, options = [], selectedValue) {
+  select.replaceChildren(...options.map((value) => el("option", { value, selected: value === selectedValue }, value)));
 }
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
@@ -433,19 +415,18 @@ function makeVisualFrame(result) {
 
   const previews = (result.translations || []).filter((item) => item.preview).map((item) => ({ item, preview: item.preview }));
   if (documentInfo.mode === "scan" || preview.mode === "scan_text_fade") {
-    frame.classList.add("scan-fade");
-    if (previews.length) {
-      const sourceUrl = previews[0].preview.source_text_url || preview.source_text_url;
-      if (sourceUrl) frame.append(el("img", { className: "text-layer source-layer", src: sourceUrl, alt: "Transcription text" }));
-      previews.forEach(({ item, preview: targetPreview }, index) => {
-        if (targetPreview.target_text_url) {
-          const image = el("img", { className: `text-layer target-layer${index ? " alternate-layer" : ""}`, src: targetPreview.target_text_url, alt: `${item.target_language} translation` });
-          image.style.setProperty("--sample-delay", `${index * 3}s`); frame.append(image);
-        }
-      });
-    } else if (preview.source_text_url && preview.target_text_url) {
-      frame.append(el("img", { className: "text-layer source-layer", src: preview.source_text_url, alt: "Transcription text" }), el("img", { className: "text-layer target-layer", src: preview.target_text_url, alt: `${translation.target_language || "Translated"} text` }));
-    }
+    const selectedPreview = previews[0]?.preview || preview;
+    const sourceUrl = selectedPreview.source_text_url;
+    const targetUrl = selectedPreview.target_text_url;
+    frame.classList.add("diagnostic-flow-frame");
+    const pageRatio = `${width} / ${height}`;
+    const sourcePage = el("div", { className: "flow-page text-preview" },
+      sourceUrl ? el("img", { src: sourceUrl, alt: `${documentInfo.source_language || "Source"} transcription text` }) : el("span", { className: "missing-preview" }, "Transcription preview unavailable."));
+    const targetPage = el("div", { className: "flow-page text-preview" },
+      targetUrl ? el("img", { src: targetUrl, alt: `${translation.target_language || "Translated"} text` }) : el("span", { className: "missing-preview" }, "Translation preview unavailable."));
+    sourcePage.style.setProperty("--page-ratio", pageRatio);
+    targetPage.style.setProperty("--page-ratio", pageRatio);
+    frame.append(el("div", { className: "flow-row translation-flow" }, sourcePage, makeFlowArrow("Translate"), targetPage));
   } else if (previews.length > 1 && previews.some(({ preview: targetPreview }) => targetPreview.url)) {
     frame.classList.add("native-preview", "multi-native-preview");
     previews.forEach(({ item, preview: targetPreview }, index) => {
@@ -516,56 +497,33 @@ function render(result) {
   const sourceFormats = [...FORMATS];
   const hasHandwritingLayer = documentInfo.mode === "scan" && kind === "handwriting";
   if (hasHandwritingLayer) sourceFormats.push("PDF (layer)");
-  if (hasHandwritingLayer && selections.transcriptionFormats.length === 1 && selections.transcriptionFormats[0] === "PDF (text)") {
-    selections.transcriptionFormats = ["PDF (layer)"];
-  }
-  selections.transcriptionFormats = selections.transcriptionFormats.filter((item) => sourceFormats.includes(item));
-  if (!selections.transcriptionFormats.length) selections.transcriptionFormats = [hasHandwritingLayer ? "PDF (layer)" : "PDF (text)"];
-  const updateTranscriptionOffer = () => {
-    $("transcribe-action").href = `/pricing.html?transcribe_formats=${encodeURIComponent(selections.transcriptionFormats.join(","))}`;
-  };
-  multiSelect($("transcribe-format"), sourceFormats, selections.transcriptionFormats, updateTranscriptionOffer);
-  updateTranscriptionOffer();
+  fillSelect($("transcribe-format"), sourceFormats, hasHandwritingLayer ? "PDF (layer)" : "PDF (text)");
   $("transcribe-format").parentElement.hidden = false;
   $("transcribe-action").hidden = false;
   $("transcription-delivery").hidden = false;
   $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
   $("transcription-delivery").textContent = `Delivery date: ${deliveryDate(words)}`;
-  const targetList = result.translations?.length ? result.translations : [translation];
   const rawSourceCode = documentInfo.source_language_code || Object.entries(LANGUAGE_CODES).find(([name]) => name.toLowerCase() === language.toLowerCase())?.[1] || language;
   const sourceCode = ({ french: "fr", english: "en", chinese: "zh", "chinese (simplified)": "zh" })[String(rawSourceCode).toLowerCase()] || String(rawSourceCode).split("-")[0].toLowerCase();
-  let defaultTargets;
-  if (sourceCode === "fr") defaultTargets = ["Chinese (Simplified)", "English"];
-  else if (sourceCode === "zh") defaultTargets = ["French", "English"];
-  else defaultTargets = ["Chinese (Simplified)", "French"];
-  const knownTargets = targetList.map((item) => item.target_language).filter(Boolean);
-  const defaultTargetNames = knownTargets.length ? knownTargets : defaultTargets;
+  const defaultTarget = sourceCode === "en" ? "French" : "English";
   const availableLanguages = LANGS.filter((item) => LANGUAGE_CODES[item] !== sourceCode && item.toLowerCase() !== language.toLowerCase());
-  selections.languages = selections.languages.filter((item) => availableLanguages.includes(item));
-  if (!selections.languages.length) selections.languages = defaultTargetNames.filter((item) => availableLanguages.includes(item));
-  if (!selections.languages.length) selections.languages = [availableLanguages[0]];
-  multiSelect($("target-language"), availableLanguages, selections.languages, () => updateTranslationOffer());
+  fillSelect($("target-language"), availableLanguages, defaultTarget);
   $("target-language").parentElement.hidden = false;
-  const translationFormats = FORMATS;
-  selections.translationFormats = selections.translationFormats.filter((item) => translationFormats.includes(item));
-  if (!selections.translationFormats.length) selections.translationFormats = ["PDF (text)"];
-  const updateTranslationFormats = () => {
-    $("translate-action").href = `/pricing.html?languages=${encodeURIComponent(selections.languages.map((name) => LANGUAGE_CODES[name]).join(","))}&formats=${encodeURIComponent(selections.translationFormats.join(","))}`;
-  };
-  multiSelect($("translation-format"), translationFormats, selections.translationFormats, updateTranslationFormats);
+  fillSelect($("translation-format"), FORMATS, "PDF (text)");
   $("translation-format").parentElement.hidden = false;
   const updateTranslationOffer = () => {
-    const selected = selections.languages;
-    $("translate-action").textContent = `Translate for ${euros(words * RATE.translate * (DIFFICULTY[kind] || 1) * selected.length)}`;
-    updateTranslationFormats();
-    const count = selected.reduce((sum, lang) => {
-      const item = targetList.find((entry) => entry.target_language === lang);
-      return sum + (Number(item?.estimated_word_count) || 0);
-    }, 0);
+    const selected = $("target-language").value;
+    const selectedTranslation = (result.translations || []).find((item) => item.target_language === selected) ||
+      (translation.target_language === selected ? translation : null);
+    $("translate-action").textContent = `Translate for ${price(words, kind, "translate")}`;
+    $("translate-action").href = `/pricing.html?language=${encodeURIComponent(LANGUAGE_CODES[selected] || selected)}&format=${encodeURIComponent($("translation-format").value)}`;
+    const count = Number(selectedTranslation?.estimated_word_count) || null;
     $("translation-stats").replaceChildren(...(count ? [el("div", {}, el("strong", {}, String(count)), el("span", {}, "estimated words"))] : []));
     $("translation-stats").hidden = false;
-    $("translation-delivery").textContent = `Delivery date: ${deliveryDate(count ?? words)}`;
+    $("translation-delivery").textContent = `Delivery date: ${deliveryDate(count || words)}`;
   };
+  $("target-language").onchange = updateTranslationOffer;
+  $("translation-format").onchange = updateTranslationOffer;
   $("translate-action").hidden = false;
   $("translation-delivery").hidden = false;
   updateTranslationOffer();
