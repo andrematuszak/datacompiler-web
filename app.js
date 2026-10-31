@@ -427,7 +427,7 @@ function makeDiagnosticSourceFlow(result, anim) {
   }
   source.style.setProperty("--page-ratio", pageRatio);
   detected.style.setProperty("--page-ratio", pageRatio);
-  const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow(), detected);
+  const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("Transcribe"), detected);
   row.dataset.anim = anim.key;
   return row;
 }
