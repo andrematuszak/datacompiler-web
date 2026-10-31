@@ -171,7 +171,7 @@ function renderCoreProgress(preview) {
   $("stats").hidden = true; $("transcription-delivery").hidden = true;
   $("transcribe-action").hidden = true; $("transcribe-format").parentElement.hidden = true;
   const visual = $("translation-visual"); visual.className = "visual-frame translation-progress";
-  visual.replaceChildren(el("span", {}, "Translation in progress"));
+  visual.replaceChildren(el("span", {}, "Translation in progress…"));
   $("translation-status").hidden = true; $("translation-stats").hidden = true;
   $("translation-delivery").hidden = true; $("translate-action").hidden = true;
   $("translation-format").parentElement.hidden = true; $("target-language").parentElement.hidden = true;
