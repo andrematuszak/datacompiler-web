@@ -162,7 +162,7 @@ async function callApi(file) {
 function renderCoreProgress(preview) {
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
   const page = () => el("div", { className: "flow-page" }, el("img", { src: preview.url, alt: "Original unblurred first page" }));
-  const left = el("div", { className: "flow-row source-flow" }, page(), makeFlowArrow("OCR"), page());
+  const left = el("div", { className: "flow-row source-flow" }, page(), makeFlowArrow("Transcribe"), page());
   left.querySelectorAll(".flow-page").forEach((item) => item.style.setProperty("--page-ratio", ratio));
   const source = $("source-visual");
   source.classList.add("diagnostic-flow-frame"); source.style.aspectRatio = ratio; source.replaceChildren(left);
@@ -352,7 +352,7 @@ function makeDiagnosticSourceFlow(result, anim) {
   }
   source.style.setProperty("--page-ratio", pageRatio);
   detected.style.setProperty("--page-ratio", pageRatio);
-  const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("OCR"), detected);
+  const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow(), detected);
   row.dataset.anim = anim.key;
   return row;
 }
@@ -368,7 +368,7 @@ function makeCoreSourceFlow(result) {
     if (detected) page.append(makeOcrOverlay(info.word_boxes, info.box_granularity));
     return page;
   };
-  return el("div", { className: "flow-row source-flow" }, makePage(false), makeFlowArrow("OCR"), makePage(true));
+  return el("div", { className: "flow-row source-flow" }, makePage(false), makeFlowArrow("Transcribe"), makePage(true));
 }
 
 function makeDiagnosticTranslationFlow(result) {
