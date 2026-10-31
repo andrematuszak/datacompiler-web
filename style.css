@@ -126,3 +126,11 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .panel:has(.translation-progress) .translation-actions{display:none}
 .panel:has(.translation-progress) .translation-stats,.panel:has(.translation-progress) #translation-delivery{display:none}
 @media(max-width:760px){.multi-select-wrap{min-width:155px}.translation-actions .format-controls{width:100%}}
+
+/* Core processing state: empty page boxes with a spinner between them. */
+.panel .visual-frame.translation-progress:has(>.flow-row){height:auto;margin-inline:auto;align-items:center;justify-content:center;overflow:visible;font-size:inherit;font-weight:inherit}
+.ghost-page{border-style:dashed;background:transparent;box-shadow:none}
+.ghost-page .missing-source{font-size:13px;font-weight:600}
+.flow-spinner{display:flex;align-items:center;justify-content:center}
+.flow-spinner .spinner{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@media(prefers-reduced-motion:reduce){.flow-spinner .spinner{animation:none}}

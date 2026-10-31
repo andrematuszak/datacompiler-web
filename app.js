@@ -13,6 +13,10 @@ const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let fastRun = 0;             // identifies the current upload, so an old fast preview cannot draw over a new one
+let progressRendered = false;
+let coreDone = false;
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -103,8 +107,14 @@ async function process(file) {
       return;
     }
     if (!CONFIG.API_BASE.trim()) throw new Error("The Core processing API is not configured.");
-    render(await callApi(file));
+    progressRendered = false;
+    coreDone = false;
+    startFastPreview(file, firstPageOnlyConfirmed);   // not awaited: the GIF appears while Core is working
+    const result = await callApi(file);
+    coreDone = true;
+    render(result);
   } catch (error) {
+    fastRun++;   // stop the fast preview of this upload
     console.error(error);
     $("error").textContent = `${error.message || "Processing failed."} Please try again, or write to contact@data-compiler.com.`;
     $("error").hidden = false;
@@ -159,23 +169,89 @@ async function callApi(file) {
   throw new Error("Processing timed out");
 }
 
+function makeProgressFlow(ratio) {
+  // Empty page boxes with a spinner where the arrow will be: same layout as the final result.
+  const ghost = (text) => {
+    const page = el("div", { className: "flow-page ghost-page" }, el("span", { className: "missing-source" }, text));
+    page.style.setProperty("--page-ratio", ratio);
+    return page;
+  };
+  const spinner = el("div", { className: "flow-arrow flow-spinner", role: "status", "aria-label": "Translation in progress" },
+    el("div", { className: "spinner" }));
+  return el("div", { className: "flow-row translation-flow" }, ghost("Preparing source text…"), spinner, ghost("Preparing target languages…"));
+}
+
 function renderCoreProgress(preview) {
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
-  const page = () => el("div", { className: "flow-page" }, el("img", { src: preview.url, alt: "Original unblurred first page" }));
-  const left = el("div", { className: "flow-row source-flow" }, page(), makeFlowArrow("Transcribe"), page());
-  left.querySelectorAll(".flow-page").forEach((item) => item.style.setProperty("--page-ratio", ratio));
+  progressRendered = true;
   const source = $("source-visual");
-  source.classList.add("diagnostic-flow-frame"); source.style.aspectRatio = ratio; source.replaceChildren(left);
+  source.classList.add("diagnostic-flow-frame"); source.style.aspectRatio = ratio;
+  if (!source.querySelector(".source-flow")) {   // the row built from the fast API (with the GIF) is kept
+    const page = () => el("div", { className: "flow-page" }, el("img", { src: preview.url, alt: "Original unblurred first page" }));
+    const left = el("div", { className: "flow-row source-flow" }, page(), makeFlowArrow("Transcribe"), page());
+    left.querySelectorAll(".flow-page").forEach((item) => item.style.setProperty("--page-ratio", ratio));
+    source.replaceChildren(left);
+  }
   $("source-status").textContent = "Transcription in progress…";
+  $("source-status").hidden = false;
   $("source-status").className = "result-heading progress-heading";
-  $("stats").hidden = true; $("transcription-delivery").hidden = true;
+  $("stats").hidden = false; $("transcription-delivery").hidden = true;
   $("transcribe-action").hidden = true; $("transcribe-format").parentElement.hidden = true;
   const visual = $("translation-visual"); visual.className = "visual-frame translation-progress";
-  visual.replaceChildren(el("span", {}, "Translation in progress…"));
-  $("translation-status").hidden = true; $("translation-stats").hidden = true;
+  visual.replaceChildren(makeProgressFlow(ratio));
+  $("translation-status").textContent = "Translation in progress…";
+  $("translation-status").hidden = false;
+  $("translation-status").className = "result-heading progress-heading";
+  $("translation-stats").hidden = true;
   $("translation-delivery").hidden = true; $("translate-action").hidden = true;
   $("translation-format").parentElement.hidden = true; $("target-language").parentElement.hidden = true;
   $("upload-panel").hidden = true; $("work").hidden = false;
+}
+
+function renderFastLeft(diagnostic, api) {
+  // Left panel: original page, arrow, then the word-highlight GIF from the fast API.
+  const preview = diagnostic.preview || {};
+  const original = { url: artifactUrl(api, preview.original_png_url), width: preview.width, height: preview.height };
+  const result = { fastDiagnostic: diagnostic, document: { original_preview: original } };
+  const anim = diagnosticAnimState(result);
+  if (!progressRendered && !coreDone) renderCoreProgress(original);
+  const source = $("source-visual");
+  const current = source.querySelector(".source-flow");
+  if (current && current.dataset.anim === anim.key) return;   // same state: leave the GIF playing
+  const row = makeDiagnosticSourceFlow(result, anim);
+  row.dataset.fast = "1";
+  source.classList.add("diagnostic-flow-frame");
+  source.replaceChildren(row);
+}
+
+async function startFastPreview(file, firstPageOnlyConfirmed) {
+  const run = ++fastRun;
+  const api = diagnosticApiBase();
+  if (!api) return;
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
+    const uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form });
+    if (!uploaded.ok) return;   // Core remains the main path
+    const { job_id: jobId } = await uploaded.json();
+    if (!jobId) return;
+    for (let attempt = 0; attempt < 120 && run === fastRun; attempt++) {
+      await sleep(attempt ? 750 : 400);
+      const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
+      if (!response.ok || run !== fastRun) return;
+      const diagnostic = await response.json();
+      if (diagnostic.status === "error" || diagnostic.document?.mode === "native") return;
+      if (diagnostic.document?.mode === "scan") {
+        renderFastLeft(diagnostic, api);
+        const animation = diagnostic.preview?.animation_status;
+        if (animation === "ready" || animation === "unavailable") return;
+      }
+      if (diagnostic.status === "done") return;
+    }
+  } catch (error) {
+    console.info("Fast preview unavailable; Core processing continues.", error);
+  }
 }
 
 async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
@@ -324,8 +400,7 @@ function makeOcrOverlay(boxes, granularity) {
 
 function diagnosticAnimState(result) {
   const preview = result.fastDiagnostic?.preview || {};
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const url = preview.animation_status === "ready" && preview.animation_gif_url && !reduceMotion
+  const url = preview.animation_status === "ready" && preview.animation_gif_url
     ? artifactUrl(diagnosticApiBase(), preview.animation_gif_url) : "";
   const state = url ? "ready" : (preview.animation_status === "processing" ? "processing" : "unavailable");
   // The key identifies what the left row shows, so a re-render does not restart the GIF.
@@ -483,7 +558,9 @@ function render(result) {
       source.replaceChildren(makeDiagnosticSourceFlow(result, anim));
     }
   } else {
-    if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || documentInfo.word_boxes?.length)) {
+    if (source.querySelector('.source-flow[data-fast="1"]')) {
+      source.classList.add("diagnostic-flow-frame");   // keep the GIF row built from the fast API
+    } else if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || documentInfo.word_boxes?.length)) {
       source.classList.add("diagnostic-flow-frame");
       source.replaceChildren(makeCoreSourceFlow(result));
     } else {
