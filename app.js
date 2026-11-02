@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://ppc-mirrors-nylon-finds.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://perceived-cbs-interfaces-somewhat.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://old-authority-univ-standings.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://learners-feels-intl-poker.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
