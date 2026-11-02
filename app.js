@@ -7,7 +7,7 @@ const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["Chinese (Simplified)", "French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
 const LANGUAGE_CODES = { "Chinese (Simplified)": "zh", French: "fr", English: "en", German: "de", Spanish: "es", Italian: "it", Polish: "pl", Turkish: "tr" };
-const FORMATS = ["PDF (text)", "DOCX", "TXT", "XLIFF"];
+const FORMATS = ["PDF (text)", "PDF (layer)", "DOCX", "TXT", "XLIFF"];
 const FIRST_PAGE_ONLY_THRESHOLD = 20 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
@@ -188,7 +188,10 @@ function renderCoreProgress(preview) {
   source.classList.add("diagnostic-flow-frame"); source.style.aspectRatio = ratio;
   if (!source.querySelector(".source-flow")) {   // the row built from the fast API (with the GIF) is kept
     const page = () => el("div", { className: "flow-page" }, el("img", { src: preview.url, alt: "Original unblurred first page" }));
-    const left = el("div", { className: "flow-row source-flow" }, page(), makeFlowArrow("Transcribe"), page());
+    const sourcePage = page();
+    const processingPage = page();
+    addScanSweep(processingPage);
+    const left = el("div", { className: "flow-row source-flow" }, sourcePage, makeFlowArrow("Transcribe"), processingPage);
     left.querySelectorAll(".flow-page").forEach((item) => item.style.setProperty("--page-ratio", ratio));
     source.replaceChildren(left);
   }
@@ -407,6 +410,10 @@ function diagnosticAnimState(result) {
   return { state, url, key: `${result.fastDiagnostic?.job_id || ""}:${state}:${url}` };
 }
 
+function addScanSweep(page) {
+  page.append(el("span", { className: "scan-sweep", "aria-hidden": "true" }));
+}
+
 function makeDiagnosticSourceFlow(result, anim) {
   const info = result.document || {};
   const preview = result.fastDiagnostic?.preview || {};
@@ -420,6 +427,7 @@ function makeDiagnosticSourceFlow(result, anim) {
     detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
     if (anim.state === "processing") {
       detected.classList.add("anim-pending");
+      addScanSweep(detected);
       detected.append(el("span", { className: "anim-caption" }, "Detecting words…"));
     } else {
       detected.append(makeOcrOverlay(preview.word_boxes, preview.box_granularity));
@@ -511,7 +519,10 @@ function makeVisualFrame(result) {
     });
   } else if (preview.url) {
     frame.classList.add("native-preview");
-    frame.append(el("img", { className: "native-page", src: preview.url, alt: "Translated rebuilt document" }));
+    const targetPage = el("div", { className: "native-page-box" });
+    targetPage.style.setProperty("--page-ratio", `${width} / ${height}`);
+    targetPage.append(el("img", { className: "native-page", src: preview.url, alt: "Translated rebuilt document" }));
+    frame.append(targetPage);
   } else {
     frame.classList.add("missing-preview");
     frame.append(el("span", {}, translation.message || "Translation preview is unavailable."));
@@ -537,9 +548,10 @@ function render(result) {
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
     el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
   const reduction = Number(documentInfo.reduction_percent);
-  const diagnosticSize = documentInfo.diagnostic_input_size_bytes ?? documentInfo.original_file_size_bytes;
   const processedPageNote = documentInfo.first_page_only ? " Only the first page was processed." : "";
-  const sizeDetails = `Estimated output size: ${formatFileSize(documentInfo.processed_file_size_bytes)}; processed input: ${formatFileSize(diagnosticSize)}; uploaded file: ${formatFileSize(documentInfo.original_file_size_bytes)}.${processedPageNote}`;
+  const comparisonSize = documentInfo.translation_file_size_bytes ?? documentInfo.processed_file_size_bytes;
+  const sizeBasis = documentInfo.size_reduction_basis === "translation" ? "translated file" : "transcribed file";
+  const sizeDetails = `Estimated ${sizeBasis} size: ${formatFileSize(comparisonSize)}; uploaded file: ${formatFileSize(documentInfo.original_file_size_bytes)}.${processedPageNote}`;
   if (documentInfo.reduction_percent !== null && documentInfo.reduction_percent !== undefined && Number.isFinite(reduction)) {
     const visibleReduction = Math.max(0, reduction);
     metrics.push(el("div", { className: `size-reduction${visibleReduction > 0 ? " reduced" : ""}`, title: sizeDetails, "aria-label": `${visibleReduction}% smaller. ${sizeDetails}` },
@@ -573,12 +585,16 @@ function render(result) {
 
   const sourceFormats = [...FORMATS];
   const hasHandwritingLayer = documentInfo.mode === "scan" && kind === "handwriting";
-  if (hasHandwritingLayer) sourceFormats.push("PDF (layer)");
   fillSelect($("transcribe-format"), sourceFormats, hasHandwritingLayer ? "PDF (layer)" : "PDF (text)");
   $("transcribe-format").parentElement.hidden = false;
   $("transcribe-action").hidden = false;
   $("transcription-delivery").hidden = false;
-  $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
+  const updateTranscriptionOffer = () => {
+    $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
+    $("transcribe-action").href = `/pricing.html?service=transcription&format=${encodeURIComponent($("transcribe-format").value)}`;
+  };
+  $("transcribe-format").onchange = updateTranscriptionOffer;
+  updateTranscriptionOffer();
   $("transcription-delivery").textContent = `Delivery date: ${deliveryDate(words)}`;
   const rawSourceCode = documentInfo.source_language_code || Object.entries(LANGUAGE_CODES).find(([name]) => name.toLowerCase() === language.toLowerCase())?.[1] || language;
   const sourceCode = ({ french: "fr", english: "en", chinese: "zh", "chinese (simplified)": "zh" })[String(rawSourceCode).toLowerCase()] || String(rawSourceCode).split("-")[0].toLowerCase();
@@ -614,6 +630,20 @@ const drop = $("drop"), input = $("file");
 drop.onclick = () => { if (!drop.classList.contains("processing-drop")) input.click(); };
 drop.onkeydown = (event) => { if ((event.key === "Enter" || event.key === " ") && !drop.classList.contains("processing-drop")) { event.preventDefault(); input.click(); } };
 input.onchange = () => input.files[0] && process(input.files[0]);
+const zoomDialog = $("image-zoom");
+const zoomImage = $("zoom-image");
+$("work").addEventListener("click", (event) => {
+  const image = event.target.closest(".visual-frame img");
+  if (!image || !zoomDialog) return;
+  zoomImage.src = image.currentSrc || image.src;
+  zoomImage.alt = image.alt || "Document preview enlarged";
+  zoomDialog.showModal();
+});
+$("zoom-close").onclick = () => zoomDialog.close();
+zoomDialog.addEventListener("click", (event) => {
+  if (event.target === zoomDialog) zoomDialog.close();
+});
+zoomDialog.addEventListener("close", () => zoomImage.removeAttribute("src"));
 ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", (event) => { const file = event.dataTransfer.files[0]; if (file) process(file); });
