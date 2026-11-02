@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://manual-reaches-implementing-friendly.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://sheets-referral-crown-foster.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://belt-represented-systems-listing.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: " https://gets-example-neural-vitamin.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
