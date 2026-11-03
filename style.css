@@ -177,3 +177,6 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 
 /* Rows sit right under the stats on both sides (same gaps); no free space is pushed between them. */
 .offer-row,.translation-actions{margin-top:0;padding-top:12px}
+
+/* Word highlighting like a highlighter pen: the text stays readable under the green. */
+.ocr-box{fill:rgba(57,255,20,.36);stroke:none;filter:none;mix-blend-mode:multiply}
