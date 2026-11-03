@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://carries-acquisitions-positive-configurations.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://item-shareware-success-year.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://graphical-launch-ranging-connections.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://neighborhood-saves-tunes-referring.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
@@ -17,6 +17,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let fastRun = 0;             // identifies the current upload, so an old fast preview cannot draw over a new one
 let progressRendered = false;
 let coreDone = false;
+let documentMode = null;     // "scan" or "native", known from the fast API
+let progressRatio = "900 / 1273";
 
 function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -109,6 +111,7 @@ async function process(file) {
     if (!CONFIG.API_BASE.trim()) throw new Error("The Core processing API is not configured.");
     progressRendered = false;
     coreDone = false;
+    documentMode = null;
     startFastPreview(file, firstPageOnlyConfirmed);   // not awaited: the GIF appears while Core is working
     const result = await callApi(file);
     coreDone = true;
@@ -169,21 +172,29 @@ async function callApi(file) {
   throw new Error("Processing timed out");
 }
 
-function makeProgressFlow(ratio) {
+function makeProgressFlow(ratio, mode) {
   // Empty page boxes with a spinner where the arrow will be: same layout as the final result.
   const ghost = (text) => {
     const page = el("div", { className: "flow-page ghost-page" }, el("span", { className: "missing-source" }, text));
     page.style.setProperty("--page-ratio", ratio);
     return page;
   };
+  if (mode === "native") {   // a native PDF has no source box: only the translated page is awaited
+    const page = el("div", { className: "flow-page ghost-page" },
+      el("div", { className: "ghost-progress", role: "status" }, el("div", { className: "spinner" }), el("span", {}, "Translation will appear here")));
+    page.style.setProperty("--page-ratio", ratio);
+    return el("div", { className: "flow-row translation-flow" }, page);
+  }
   const spinner = el("div", { className: "flow-arrow flow-spinner", role: "status", "aria-label": "Translation in progress" },
     el("div", { className: "spinner" }));
   return el("div", { className: "flow-row translation-flow" }, ghost("Preparing source text…"), spinner, ghost("Preparing target languages…"));
 }
 
-function renderCoreProgress(preview) {
+function renderCoreProgress(preview, mode) {
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
   progressRendered = true;
+  progressRatio = ratio;
+  if (mode) documentMode = mode;
   const source = $("source-visual");
   source.classList.add("diagnostic-flow-frame"); source.style.aspectRatio = ratio;
   if (!source.querySelector(".source-flow")) {   // the row built from the fast API (with the GIF) is kept
@@ -201,7 +212,7 @@ function renderCoreProgress(preview) {
   $("stats").hidden = false; $("transcription-delivery").hidden = true;
   $("transcribe-action").hidden = true; $("transcribe-format").parentElement.hidden = true;
   const visual = $("translation-visual"); visual.className = "visual-frame translation-progress";
-  visual.replaceChildren(makeProgressFlow(ratio));
+  visual.replaceChildren(makeProgressFlow(ratio, documentMode));
   $("translation-status").textContent = "Translation in progress…";
   $("translation-status").hidden = false;
   $("translation-status").className = "result-heading progress-heading";
@@ -211,13 +222,21 @@ function renderCoreProgress(preview) {
   $("upload-panel").hidden = true; $("work").hidden = false;
 }
 
+function setProgressMode(mode) {
+  if (!mode || mode === documentMode) return;
+  documentMode = mode;
+  const visual = $("translation-visual");
+  if (visual?.classList.contains("translation-progress")) visual.replaceChildren(makeProgressFlow(progressRatio, mode));
+}
+
 function renderFastLeft(diagnostic, api) {
   // Left panel: original page, arrow, then the word-highlight GIF from the fast API.
   const preview = diagnostic.preview || {};
   const original = { url: artifactUrl(api, preview.original_png_url), width: preview.width, height: preview.height };
   const result = { fastDiagnostic: diagnostic, document: { original_preview: original } };
   const anim = diagnosticAnimState(result);
-  if (!progressRendered && !coreDone) renderCoreProgress(original);
+  if (!progressRendered && !coreDone) renderCoreProgress(original, diagnostic.document?.mode);
+  else if (!coreDone) setProgressMode(diagnostic.document?.mode);
   const source = $("source-visual");
   const current = source.querySelector(".source-flow");
   if (current && current.dataset.anim === anim.key) return;   // same state: leave the GIF playing
@@ -244,8 +263,8 @@ async function startFastPreview(file, firstPageOnlyConfirmed) {
       const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
       if (!response.ok || run !== fastRun) return;
       const diagnostic = await response.json();
-      if (diagnostic.status === "error" || diagnostic.document?.mode === "native") return;
-      if (diagnostic.document?.mode === "scan") {
+      if (diagnostic.status === "error") return;
+      if (diagnostic.document?.mode && diagnostic.preview?.original_png_url) {   // scan and native documents
         renderFastLeft(diagnostic, api);
         const animation = diagnostic.preview?.animation_status;
         if (animation === "ready" || animation === "unavailable") return;
@@ -512,11 +531,14 @@ function makeVisualFrame(result) {
     frame.append(el("div", { className: "flow-row translation-flow" }, sourcePage, makeFlowArrow("Translate"), targetPage));
   } else if (previews.length > 1 && previews.some(({ preview: targetPreview }) => targetPreview.url)) {
     frame.classList.add("native-preview", "multi-native-preview");
+    const pageBox = el("div", { className: "native-page-box" });
+    pageBox.style.setProperty("--page-ratio", `${width} / ${height}`);
     previews.forEach(({ item, preview: targetPreview }, index) => {
       if (!targetPreview.url) return;
       const image = el("img", { className: `native-page native-target-${index}`, src: targetPreview.url, alt: `${item.target_language} translated rebuilt document` });
-      image.style.setProperty("--sample-delay", `${index * 3}s`); frame.append(image);
+      image.style.setProperty("--sample-delay", `${index * 3}s`); pageBox.append(image);
     });
+    frame.append(pageBox);
   } else if (preview.url) {
     frame.classList.add("native-preview");
     const targetPage = el("div", { className: "native-page-box" });

@@ -149,3 +149,31 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .image-zoom img{display:block;width:100%;height:100%;object-fit:contain;cursor:zoom-out}
 .image-zoom-close{position:absolute;top:9px;right:12px;width:36px;height:36px;border:0;border-radius:50%;background:var(--line);color:var(--ink);font-size:25px;line-height:1;cursor:pointer}
 @media(prefers-reduced-motion:reduce){.scan-sweep{animation:none;opacity:.3;transform:translateY(760%)}}
+
+/* One sizing rule for every page box (left and right, scan and native), derived from the frame width. */
+.panel .visual-frame:has(>.flow-row),.panel .visual-frame.native-preview{
+  --page-h:clamp(190px,34vh,380px);
+  --gap:clamp(8px,1.6vw,20px);
+  container-type:inline-size;
+  width:min(100%,calc(var(--page-h)*1.5 + 96px));
+  height:auto;aspect-ratio:auto!important;margin-inline:auto;
+}
+.flow-row{gap:var(--gap,clamp(8px,1.6vw,20px))}
+.flow-page,.native-page-box{
+  flex:0 0 auto;width:calc((100cqw - clamp(46px,9cqw,70px) - 2*var(--gap,16px))/2);
+  height:auto;max-width:none;aspect-ratio:var(--page-ratio,.75);
+}
+.flow-arrow{flex:0 0 clamp(46px,9cqw,70px)}
+.native-page-box>.native-page{object-fit:contain}
+
+/* Waiting state of a single native page. */
+.ghost-progress{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;color:var(--mute);font-size:13px;font-weight:600;text-align:center}
+.ghost-progress .spinner{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@media(prefers-reduced-motion:reduce){.ghost-progress .spinner{animation:none}}
+
+/* Fallback detection boxes appear one after the other, once, and stay (no endless loop). */
+.ocr-box{animation:ocr-box-reveal .35s ease-out forwards;animation-delay:var(--box-delay,0s)}
+@keyframes ocr-box-reveal{from{opacity:0}to{opacity:1}}
+
+/* Rows sit right under the stats on both sides (same gaps); no free space is pushed between them. */
+.offer-row,.translation-actions{margin-top:0;padding-top:12px}
