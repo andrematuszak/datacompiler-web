@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://carries-acquisitions-positive-configurations.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://item-shareware-success-year.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://silly-rise-counsel-assembled.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://heroes-breed-republican-drawings.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
