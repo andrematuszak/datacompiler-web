@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://everyday-performs-formed-msgstr.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://hypothetical-virgin-benchmark-deviant.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://sufficiently-opening-temporarily-pennsylvania.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://pets-combinations-refers-receiver.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };

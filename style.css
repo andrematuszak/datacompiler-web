@@ -180,3 +180,6 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 
 /* Word highlighting like a highlighter pen: the text stays readable under the green. */
 .ocr-box{fill:rgba(57,255,20,.36);stroke:none;filter:none;mix-blend-mode:multiply}
+
+/* While waiting for the full word list, the green bar goes down, then back up. */
+.scan-sweep{animation-direction:alternate}
