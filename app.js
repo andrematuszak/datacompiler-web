@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://sufficiently-opening-temporarily-pennsylvania.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://pets-combinations-refers-receiver.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
+  API_BASE: "https://carries-acquisitions-positive-configurations.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://item-shareware-success-year.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
@@ -161,6 +161,7 @@ async function callApi(file) {
       renderCoreProgress(status.preview.original_preview);
       progressShown = true;
     }
+    if (status.preview?.word_boxes?.length) applyWordHighlights(status.preview);
     if (state === "done") {
       const response = await fetch(`${api}/result/${jobId}`);
       if (!response.ok) throw new Error(`Result failed: HTTP ${response.status}`);
@@ -222,6 +223,18 @@ function renderCoreProgress(preview, mode) {
   $("upload-panel").hidden = true; $("work").hidden = false;
 }
 
+function applyWordHighlights(preview) {
+  // Replace the sweeping bar by a green highlight on the words the pipeline found (page 1).
+  const row = $("source-visual").querySelector(".source-flow");
+  if (!row || row.dataset.fast === "1") return;   // scan documents keep the GIF row
+  const pages = row.querySelectorAll(".flow-page");
+  const target = pages[pages.length - 1];
+  if (!target || target.dataset.highlighted) return;
+  target.querySelector(".scan-sweep")?.remove();
+  target.append(makeOcrOverlay(preview.word_boxes, "word"));
+  target.dataset.highlighted = "1";
+}
+
 function setProgressMode(mode) {
   if (!mode || mode === documentMode) return;
   documentMode = mode;
@@ -264,7 +277,14 @@ async function startFastPreview(file, firstPageOnlyConfirmed) {
       if (!response.ok || run !== fastRun) return;
       const diagnostic = await response.json();
       if (diagnostic.status === "error") return;
-      if (diagnostic.document?.mode && diagnostic.preview?.original_png_url) {   // scan and native documents
+      if (diagnostic.document?.mode === "native" && diagnostic.preview?.original_png_url) {
+        // Native pages: no GIF. The sweep stays until Core returns the words; here we only learn the mode.
+        const original = { url: artifactUrl(api, diagnostic.preview.original_png_url), width: diagnostic.preview.width, height: diagnostic.preview.height };
+        if (!progressRendered && !coreDone) renderCoreProgress(original, "native");
+        else if (!coreDone) setProgressMode("native");
+        return;
+      }
+      if (diagnostic.document?.mode === "scan" && diagnostic.preview?.original_png_url) {
         renderFastLeft(diagnostic, api);
         const animation = diagnostic.preview?.animation_status;
         if (animation === "ready" || animation === "unavailable") return;
@@ -408,13 +428,12 @@ function makeOcrOverlay(boxes, granularity) {
     [box.x, box.y, box.width, box.height].every(Number.isFinite) &&
     box.width > 0 && box.height > 0 && box.x >= 0 && box.y >= 0 &&
     box.x + box.width <= 1.01 && box.y + box.height <= 1.01);
-  const cycle = Math.max(3, valid.length * 0.07 + 1);
-  overlay.style.setProperty("--box-cycle", `${cycle}s`);
+  const step = Math.min(0.07, 3 / Math.max(valid.length, 1));   // the whole reveal lasts about 3 s
   valid.forEach((box, index) => {
     const rect = svgEl("rect", {
       class: "ocr-box", x: box.x, y: box.y, width: box.width, height: box.height, rx: 0.004, "aria-hidden": "true",
     });
-    rect.style.setProperty("--box-delay", `${index * 0.07}s`);
+    rect.style.setProperty("--box-delay", `${(index * step).toFixed(3)}s`);
     overlay.append(rect);
   });
   return overlay;
@@ -594,6 +613,8 @@ function render(result) {
   } else {
     if (source.querySelector('.source-flow[data-fast="1"]')) {
       source.classList.add("diagnostic-flow-frame");   // keep the GIF row built from the fast API
+    } else if (source.querySelector('.source-flow .flow-page[data-highlighted="1"]')) {
+      source.classList.add("diagnostic-flow-frame");   // keep the highlight already shown while Core was translating
     } else if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || documentInfo.word_boxes?.length)) {
       source.classList.add("diagnostic-flow-frame");
       source.replaceChildren(makeCoreSourceFlow(result));
