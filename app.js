@@ -1,5 +1,5 @@
 const CONFIG = {
-  API_BASE: "https://places-edit-frequent-sleeve.trycloudflare.com",
+  API_BASE: "https://presentation-message-occurring-columbus.trycloudflare.com",
   DIAGNOSTIC_API_BASE: "https://tomatoes-small-keyboard-likelihood.trycloudflare.com", // Set to the separate Cloudflare URL for datacompiler-api.
   DEMO: false,
 };
