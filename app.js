@@ -62,6 +62,9 @@ function absoluteArtifactUrls(result, api) {
     }
   };
   resolve(result.document?.original_preview);
+  resolve(result.transcription?.text);
+  resolve(result.transcription?.document);
+  resolve(result.transcription?.preview);
   resolve(result.translation?.preview);
   (result.translations || []).forEach((translation) => resolve(translation.preview));
 }
@@ -537,7 +540,7 @@ function makeVisualFrame(result) {
   const previews = (result.translations || []).filter((item) => item.preview).map((item) => ({ item, preview: item.preview }));
   if (documentInfo.mode === "scan" || preview.mode === "scan_text_fade") {
     const selectedPreview = previews[0]?.preview || preview;
-    const sourceUrl = selectedPreview.source_text_url;
+    const sourceUrl = selectedPreview.source_text_url || result.transcription?.preview?.source_text_url;
     const targetUrl = selectedPreview.target_text_url;
     frame.classList.add("diagnostic-flow-frame");
     const pageRatio = `${width} / ${height}`;
@@ -548,25 +551,39 @@ function makeVisualFrame(result) {
     sourcePage.style.setProperty("--page-ratio", pageRatio);
     targetPage.style.setProperty("--page-ratio", pageRatio);
     frame.append(el("div", { className: "flow-row translation-flow" }, sourcePage, makeFlowArrow("Translate"), targetPage));
-  } else if (previews.length > 1 && previews.some(({ preview: targetPreview }) => targetPreview.url)) {
-    frame.classList.add("native-preview", "multi-native-preview");
-    const pageBox = el("div", { className: "native-page-box" });
-    pageBox.style.setProperty("--page-ratio", `${width} / ${height}`);
-    previews.forEach(({ item, preview: targetPreview }, index) => {
-      if (!targetPreview.url) return;
-      const image = el("img", { className: `native-page native-target-${index}`, src: targetPreview.url, alt: `${item.target_language} translated rebuilt document` });
-      image.style.setProperty("--sample-delay", `${index * 3}s`); pageBox.append(image);
-    });
-    frame.append(pageBox);
-  } else if (preview.url) {
-    frame.classList.add("native-preview");
-    const targetPage = el("div", { className: "native-page-box" });
-    targetPage.style.setProperty("--page-ratio", `${width} / ${height}`);
-    targetPage.append(el("img", { className: "native-page", src: preview.url, alt: "Translated rebuilt document" }));
-    frame.append(targetPage);
   } else {
-    frame.classList.add("missing-preview");
-    frame.append(el("span", {}, translation.message || "Translation preview is unavailable."));
+    const targets = previews.filter(({ preview: targetPreview }) => targetPreview.url);
+    if (!targets.length && preview.url) targets.push({ item: translation, preview });
+    if (!original.url && !targets.length) {
+      frame.classList.add("missing-preview");
+      frame.append(el("span", {}, translation.message || "Translation preview is unavailable."));
+      return frame;
+    }
+    frame.classList.add("native-preview");
+    if (targets.length > 1) frame.classList.add("multi-native-preview");
+    const pageRatio = `${width} / ${height}`;
+    const makeNativeBox = (...children) => {
+      const box = el("div", { className: "native-page-box" });
+      box.style.setProperty("--page-ratio", pageRatio);
+      box.append(...children.flat());
+      return box;
+    };
+    const sourceBox = original.url
+      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document` }))
+      : null;
+    let targetBox;
+    if (targets.length > 1) {
+      targetBox = makeNativeBox(targets.map(({ item, preview: targetPreview }, index) => {
+        const image = el("img", { className: `native-page native-target-${index}`, src: targetPreview.url, alt: `${item.target_language || "Translated"} rebuilt document` });
+        image.style.setProperty("--sample-delay", `${index * 3}s`);
+        return image;
+      }));
+    } else if (targets.length === 1) {
+      targetBox = makeNativeBox(el("img", { className: "native-page", src: targets[0].preview.url, alt: `${targets[0].item.target_language || "Translated"} rebuilt document` }));
+    } else {
+      targetBox = makeNativeBox(el("span", { className: "missing-preview" }, translation.message || "Translation preview is unavailable."));
+    }
+    frame.append(...(sourceBox ? [sourceBox, makeFlowArrow("Translate"), targetBox] : [targetBox]));
   }
   return frame;
 }

@@ -35,7 +35,13 @@ paywall in a fixed position over the animation.
       "height": 1273
     }
   },
-  "transcription": { "status": "needs_review" },
+  "transcription": {
+    "status": "needs_review",
+    "preview": {
+      "mode": "scan_text_fade",
+      "source_text_url": "/artifact/{job_id}/scan-source-text.png"
+    }
+  },
   "translation": {
     "status": "needs_review",
     "target_language": "English",
@@ -49,11 +55,17 @@ paywall in a fixed position over the animation.
 }
 ```
 
+`transcription.preview.source_text_url` is always present for scan documents,
+even when every translation fails, so the panel can still show the source text
+next to a "Translation preview unavailable" placeholder.
+
 ## Native-text PDF
 
 For native-text documents, `document.mode` is `native` and the right panel
-shows a preview rendered from the translated rebuilt PDF. No text overlay or
-fade is used.
+shows two pages: the original first page followed by a preview rendered from
+the translated rebuilt PDF. No text overlay or fade is used. When no
+translation preview is available, the source page is still shown next to an
+unavailable placeholder.
 
 ```json
 "translation": {

@@ -117,7 +117,7 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .multi-option:hover{background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
 .multi-option.selected{background:var(--accent);color:#fff}
 .target-layer{animation-delay:var(--sample-delay,0s)}
-.multi-native-preview .native-page{opacity:0;animation:target-sample-cycle 6s infinite;animation-delay:var(--sample-delay,0s)}
+.multi-native-preview .native-page:not(.native-source){opacity:0;animation:target-sample-cycle 6s infinite;animation-delay:var(--sample-delay,0s)}
 .multi-native-preview .native-page:first-child{animation-delay:0s}
 .translation-progress{display:flex;align-items:flex-end;justify-content:center;background:transparent!important;border:0!important;color:#0F1B33;font-size:18px;font-weight:700;text-align:center;overflow:visible}
 .panel .visual-frame.translation-progress{height:calc(clamp(190px,34vh,380px) + 50px);margin:0;border-radius:0;padding:0}
@@ -136,7 +136,7 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 @media(prefers-reduced-motion:reduce){.flow-spinner .spinner{animation:none}}
 
 /* A native translated page uses the same on-screen page height as each source-flow page. */
-.panel .visual-frame.native-preview{height:auto!important;aspect-ratio:auto!important;overflow:visible;border:0;border-radius:0;background:transparent;display:flex;align-items:stretch;justify-content:center}
+.panel .visual-frame.native-preview{height:auto!important;aspect-ratio:auto!important;overflow:visible;border:0;border-radius:0;background:transparent;display:flex;align-items:stretch;justify-content:center;gap:var(--gap,clamp(8px,1.6vw,20px))}
 .native-page-box{position:relative;flex:0 0 auto;height:clamp(190px,34vh,380px);aspect-ratio:var(--page-ratio,.72);max-width:100%;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 6px 18px #10234514}
 .native-page-box>.native-page{position:absolute;inset:0;width:100%;height:100%;object-fit:fill}
 /* Generic pre-OCR sweep; it gives immediate feedback without pretending to recognize letters. */
