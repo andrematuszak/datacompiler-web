@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://involvement-steam-managing-mix.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://boat-northwest-kenny-implied.trycloudflare.com",
+  API_BASE: "https://affiliation-flashing-optimize-state.trycloudflare.com",
+  DIAGNOSTIC_API_BASE: "https://economy-william-solo-suppose.trycloudflare.com",
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
