@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>How to Translate a Scanned PDF – DataCompiler</title>
+  <meta name="description" content="A scanned PDF has no text layer, so translation tools can't read it directly. Learn the OCR-first workflow and how to keep the original layout.">
+  <link rel="canonical" href="https://data-compiler.com/guides/translate-scanned-pdf.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="DataCompiler">
+  <meta property="og:title" content="How to Translate a Scanned PDF">
+  <meta property="og:description" content="A scanned PDF has no text layer. Learn the OCR-first workflow and how to keep the original layout when translating.">
+  <meta property="og:url" content="https://data-compiler.com/guides/translate-scanned-pdf.html">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="How to Translate a Scanned PDF">
+  <meta name="twitter:description" content="A scanned PDF has no text layer. Learn the OCR-first workflow for translation.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap">
+</head>
+<body>
+  <header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/guides.html" aria-current="page">Guides</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header>
+  <main class="wrap">
+    <p class="breadcrumb"><a href="/guides.html">Guides</a> / Scanned PDFs</p>
+    <h1>How to translate a scanned PDF</h1>
+    <p class="guide-meta">Reading time: 4 min</p>
+    <div class="guide-body">
+      <p>You have a scanned PDF — an invoice archive, a contract, a report — and you need it in another language. You paste it into a translation tool and nothing usable comes out. This guide explains why, and the workflow that actually works.</p>
+
+      <h2>Why scanned PDFs break translation tools</h2>
+      <p>A "PDF" is not one thing. A native PDF stores text as characters with font and position information, so tools can read, select and translate it directly. A scanned PDF is a stack of page images — photographs of paper. There is no text inside at all. Any tool that tries to translate it is really trying to read the image first, which is the job of OCR (optical character recognition), not translation.</p>
+      <p>Most consumer translation tools either refuse scanned PDFs outright or silently produce garbage, because they skip the OCR step or use a weak one.</p>
+
+      <h2>The two-step workflow that works</h2>
+      <h3>Step 1 — OCR: image to text</h3>
+      <p>Run the scan through OCR to recover the text. Quality depends heavily on the scan: straight pages, good contrast and sufficient resolution make a dramatic difference. Tables, stamps and handwriting are the usual failure points — check the OCR output before translating, because errors propagate into the translation.</p>
+      <h3>Step 2 — Translate the recovered text</h3>
+      <p>Once you have clean source text, translate it with a proper translation engine. If the document must keep its original look — same pages, same layout — the translated text needs to be reinserted into a rebuilt document rather than exported as a plain text file.</p>
+
+      <h2>Keeping the layout intact</h2>
+      <p>The hard part of document translation is not the language — it is the layout. Translated text is rarely the same length as the source (German expands, Chinese compresses), so naive reinsertion overflows boxes and breaks tables. A good document translation service re-typesets the text to fit the original page geometry instead of just swapping strings.</p>
+      <p>With <a href="/">DataCompiler</a>, scanned documents go through both steps in one pass: the scan is read, the text is transcribed in the source language, translated into your target language, and rendered back onto page previews that keep the document's structure. Passages the engine is unsure about are flagged for human review.</p>
+
+      <h2>Languages and formats</h2>
+      <p>DataCompiler translates between Chinese (Simplified), French, English, German, Spanish, Italian, Polish and Turkish. The same pipeline handles native-text PDFs, scanned pages and mixed documents containing both printed and handwritten parts.</p>
+
+      <h2>Pricing a scanned PDF translation</h2>
+      <p>Upload the file to see the word count, price and delivery date instantly — translation starts at €0.02 per word for transcription and €0.05 per word for translation, adjusted for document difficulty. See <a href="/pricing.html">pricing</a> or read <a href="/clients.html">how clients use the service</a>.</p>
+    </div>
+    <div class="guide-cta">
+      <p>Have a scanned PDF to translate? Upload it and preview the source text and the translation side by side.</p>
+      <a class="btn" href="/">Translate a document</a>
+    </div>
+  </main>
+  <footer><div class="wrap">© DataCompiler 2026 · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
+</body>
+</html>

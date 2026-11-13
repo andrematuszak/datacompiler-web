@@ -184,3 +184,31 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 
 /* While waiting for the full word list, the green bar goes down, then back up. */
 .scan-sweep{animation-direction:alternate}
+
+/* Content pages: lead text, buttons, cards and guide articles. */
+.lead{font-size:18px;color:var(--mute);max-width:62ch;margin:0 0 28px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 18px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;text-decoration:none;box-shadow:0 3px 8px #2457f533}
+.btn:hover{background:color-mix(in srgb,var(--accent) 85%,black)}
+.btn.secondary{background:var(--panel);color:var(--accent);border:1px solid var(--line);box-shadow:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:0 8px 28px #1023450a}
+.card h3{margin:0 0 8px;font-size:17px}
+.card p{margin:0 0 14px;color:var(--mute)}
+.card .price{font-size:22px;font-weight:700;color:var(--ink);margin:0 0 10px}
+.guide-list{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:14px}
+.guide-list a{display:block;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;text-decoration:none;color:var(--ink);box-shadow:0 8px 28px #1023450a}
+.guide-list a:hover{border-color:var(--accent)}
+.guide-list strong{display:block;font-size:17px;margin-bottom:6px}
+.guide-list span{color:var(--mute);font-size:14px}
+.guide-body{max-width:72ch;margin-top:8px}
+.guide-body h2{font-size:22px;margin:36px 0 12px;letter-spacing:-.01em}
+.guide-body h3{font-size:17px;margin:24px 0 8px}
+.guide-body p,.guide-body li{color:var(--ink)}
+.guide-body ul,.guide-body ol{padding-left:22px}
+.guide-body li{margin-bottom:8px}
+.guide-body a{color:var(--accent)}
+.guide-cta{margin-top:40px;padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.guide-cta p{margin:0;color:var(--mute);max-width:52ch}
+.guide-meta{color:var(--mute);font-size:14px;margin:0 0 24px}
+.breadcrumb{font-size:14px;color:var(--mute);margin-bottom:8px}
+.breadcrumb a{color:var(--accent);text-decoration:none}

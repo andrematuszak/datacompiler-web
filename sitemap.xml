@@ -25,6 +25,30 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://data-compiler.com/guides.html</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/transcribe-handwritten-documents.html</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/translate-scanned-pdf.html</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/ocr-vs-human-transcription.html</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://data-compiler.com/contact.html</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>yearly</changefreq>
