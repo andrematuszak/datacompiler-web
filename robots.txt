@@ -1,4 +1,6 @@
+# Allow all search engine crawlers (Google, Bing, Brave, etc.)
 User-agent: *
 Allow: /
 
+# Explicitly declare the sitemap location for all bots
 Sitemap: https://data-compiler.com/sitemap.xml
