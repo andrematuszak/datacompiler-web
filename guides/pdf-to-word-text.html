@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>How to Convert PDF to Word or Text – DataCompiler</title>
+  <meta name="description" content="Convert a PDF to editable Word or plain text — including scans and handwriting. Learn the OCR-first workflow and when layout matters.">
+  <link rel="canonical" href="https://data-compiler.com/guides/pdf-to-word-text.html">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="DataCompiler">
+  <meta property="og:title" content="How to Convert PDF to Word or Text">
+  <meta property="og:description" content="Convert PDFs to editable Word or text, including scans and handwriting, with the OCR-first workflow.">
+  <meta property="og:url" content="https://data-compiler.com/guides/pdf-to-word-text.html">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="How to Convert PDF to Word or Text">
+  <meta name="twitter:description" content="Convert PDFs to editable Word or text, including scans.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap">
+</head>
+<body>
+  <header><div class="wrap"><a class="logo" href="/">DataCompiler</a><nav aria-label="Main navigation"><a href="/pricing.html">Pricing</a><a href="/guides.html" aria-current="page">Guides</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a></nav></div></header>
+  <main class="wrap">
+    <p class="breadcrumb"><a href="/guides.html">Guides</a> / Guides</p>
+    <h1>How to convert a PDF to Word or text</h1>
+    <p class="guide-meta">Reading time: 4 min</p>
+    <div class="guide-body">
+      <p>"Convert PDF to Word" is one of the most searched document tasks — but the right method depends entirely on what kind of PDF you have. A born-digital PDF (created from Word, InDesign, LaTeX) already contains real text and converts cleanly. A scanned PDF is a stack of images and needs OCR first. This guide covers both.</p>
+
+      <h2>Step 1: identify your PDF type</h2>
+      <p>Open the PDF and try to select the text. If you can highlight words, it's native — conversion will be easy. If selection fails or produces garbage, it's a scan: the page is an image and OCR is required before any text extraction.</p>
+
+      <h2>Native PDFs: direct conversion</h2>
+      <p>For native PDFs, most tools work: Adobe Acrobat, Word itself (File → Open), free converters, or command-line tools like <code>pdftotext</code>. The output preserves text content but rarely preserves perfect layout — columns, tables and text boxes get reorganized. If you need the <em>look</em> preserved, converting page-by-page to images or keeping the PDF is often better than forcing editable text.</p>
+
+      <h2>Scanned PDFs: OCR first</h2>
+      <p>For scans, the workflow is OCR → text → editable format. Quality depends on scan resolution and contrast. Tables, handwriting, stamps and multi-column layouts are the usual failure points — always proofread OCR output before relying on it.</p>
+      <p>With <a href="/">DataCompiler</a>, upload the scanned PDF and the transcription step produces the source text directly — you get the transcript plus the option to download it as PDF or text, with uncertain passages flagged for human review. That review step matters most for names, numbers and tables.</p>
+
+      <h2>PDF to plain text vs PDF to Word</h2>
+      <ul>
+        <li><strong>Plain text (.txt)</strong> — fastest, loses all formatting. Best for search, translation pipelines, data extraction.</li>
+        <li><strong>Word (.docx)</strong> — keeps headings, lists, basic formatting. Best when the content will be edited.</li>
+        <li><strong>Keep as PDF</strong> — often the right answer for documents that will be shared unchanged; PDFs are compact and universal.</li>
+      </ul>
+
+      <h2>What about handwriting?</h2>
+      <p>If your "PDF" is actually photos of handwritten pages, standard converters fail entirely — handwriting needs specialized OCR or human transcription. DataCompiler handles handwriting scans with the same upload flow; see <a href="/guides/transcribe-handwritten-documents.html">our handwriting guide</a> for details.</p>
+    </div>
+    <div class="guide-cta">
+      <p>Need text out of a PDF — scanned or not? Upload it and get the transcript with flagged passages.</p>
+      <a class="btn" href="/">Convert a document</a>
+    </div>
+  </main>
+  <footer><div class="wrap">© DataCompiler 2026 · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
+</body>
+</html>
