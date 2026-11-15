@@ -1,6 +1,6 @@
 const CONFIG = {
-  API_BASE: "https://affiliation-flashing-optimize-state.trycloudflare.com",
-  DIAGNOSTIC_API_BASE: "https://economy-william-solo-suppose.trycloudflare.com",
+  API_BASE: "https://api.data-compiler.com",
+  DIAGNOSTIC_API_BASE: "https://api.data-compiler.com",
   DEMO: false,
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
@@ -8,7 +8,15 @@ const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
 const LANGS = ["Chinese (Simplified)", "French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
 const LANGUAGE_CODES = { "Chinese (Simplified)": "zh", French: "fr", English: "en", German: "de", Spanish: "es", Italian: "it", Polish: "pl", Turkish: "tr" };
 const FORMATS = ["PDF (text)", "PDF (layer)", "DOCX", "TXT", "XLIFF"];
-const FIRST_PAGE_ONLY_THRESHOLD = 20 * 1024 * 1024;
+const FIRST_PAGE_ONLY_THRESHOLD = 10 * 1024 * 1024;   // keep equal to the API constants
+const ACCEPTED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
+// Output formats and target languages that really work today. Everything else stays in the
+// lists but answers "coming soon" when selected. Edit these two sets as features ship.
+const AVAILABLE_FORMATS = new Set(["PDF (text)", "PDF (layer)"]);
+const AVAILABLE_TARGET_LANGUAGES = new Set(["English", "French"]);
+const outputFormatNotice = (name) => `${name} output format not available, coming soon!`;
+const targetLanguageNotice = (name) => `${name} target language not available, coming soon!`;
+class NoticeError extends Error {}   // a message meant for the user, shown as is
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
@@ -24,6 +32,19 @@ function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
   children.flat().filter((child) => child !== null && child !== undefined).forEach((child) => node.append(child));
   return node;
+}
+function unsupportedFormatMessage(fileName) {
+  const match = /\.([A-Za-z0-9]{1,5})$/.exec(fileName || "");
+  if (!match) return "Please upload a PDF, JPG or PNG file (up to 100 MB).";
+  return `${match[1].toUpperCase()} format not available, coming soon!`;
+}
+async function apiNotice(response, fallback) {
+  // 413 / 415 carry a user-facing sentence in `detail`; show it instead of "HTTP 415".
+  if ([413, 415].includes(response.status)) {
+    const body = await response.json().catch(() => null);
+    if (typeof body?.detail === "string") return new NoticeError(body.detail);
+  }
+  return new Error(fallback);
 }
 function formatFileSize(bytes) {
   if (bytes == null || !Number.isFinite(Number(bytes))) return "not available";
@@ -90,6 +111,13 @@ function updateProcessingStage(stage) {
 }
 
 async function process(file) {
+  const extension = (/\.[^.]+$/.exec(file.name.toLowerCase()) || [""])[0];
+  if (!ACCEPTED_EXTENSIONS.includes(extension)) {
+    $("error").textContent = unsupportedFormatMessage(file.name);
+    $("error").hidden = false;
+    input.value = "";
+    return;
+  }
   if (file.size > MAX_UPLOAD_SIZE) {
     window.alert("File is too large. The upload limit is 100 MB.");
     input.value = "";
@@ -98,7 +126,7 @@ async function process(file) {
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
   let firstPageOnlyConfirmed = false;
   if (isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD) {
-    const continueWithFirstPage = window.confirm("File is large. Only the first page will be treated. Continue?");
+    const continueWithFirstPage = window.confirm("This file is larger than 10 MB. Only its first page will be treated. Continue?");
     if (!continueWithFirstPage) {
       input.value = "";
       return;
@@ -122,7 +150,9 @@ async function process(file) {
   } catch (error) {
     fastRun++;   // stop the fast preview of this upload
     console.error(error);
-    $("error").textContent = `${error.message || "Processing failed."} Please try again, or write to contact@data-compiler.com.`;
+    $("error").textContent = error instanceof NoticeError
+      ? error.message
+      : `${error.message || "Processing failed."} Please try again, or write to contact@data-compiler.com.`;
     $("error").hidden = false;
     $("work").hidden = true;
     $("upload-panel").hidden = false;
@@ -148,7 +178,7 @@ async function callApi(file) {
   if (!api) throw new Error("The full-processing API is not configured.");
   const form = new FormData(); form.append("file", file);
   const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form });
-  if (!uploaded.ok) throw new Error(`Upload failed: HTTP ${uploaded.status}`);
+  if (!uploaded.ok) throw await apiNotice(uploaded, `Upload failed: HTTP ${uploaded.status}`);
   const { job_id: jobId } = await uploaded.json();
   if (!jobId) throw new Error("The upload response did not include a job id");
   let progressShown = false;
@@ -320,7 +350,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
       return callDiagnosticApi(file, true);
     }
   }
-  if (!uploaded.ok) throw new Error(`Diagnostic upload failed: HTTP ${uploaded.status}`);
+  if (!uploaded.ok) throw await apiNotice(uploaded, `Diagnostic upload failed: HTTP ${uploaded.status}`);
   const uploadResult = await uploaded.json();
   const jobId = uploadResult.job_id;
   if (!jobId) return { fallbackToLegacy: true, fallbackReason: "The diagnostic API did not return a job id." };
@@ -649,7 +679,18 @@ function render(result) {
   $("transcribe-format").parentElement.hidden = false;
   $("transcribe-action").hidden = false;
   $("transcription-delivery").hidden = false;
+  const sourceStatus = $("source-status");
+  const sourceStatusText = sourceStatus.textContent, sourceStatusClass = sourceStatus.className;
   const updateTranscriptionOffer = () => {
+    const format = $("transcribe-format").value;
+    if (!AVAILABLE_FORMATS.has(format)) {
+      // The notice replaces the "needs human review" heading; nothing else changes.
+      sourceStatus.textContent = outputFormatNotice(format);
+      sourceStatus.className = "result-heading warn";
+      return;
+    }
+    sourceStatus.textContent = sourceStatusText;
+    sourceStatus.className = sourceStatusClass;
     $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
     $("transcribe-action").href = `/pricing.html?service=transcription&format=${encodeURIComponent($("transcribe-format").value)}`;
   };
@@ -664,8 +705,23 @@ function render(result) {
   $("target-language").parentElement.hidden = false;
   fillSelect($("translation-format"), FORMATS, "PDF (text)");
   $("translation-format").parentElement.hidden = false;
-  const updateTranslationOffer = () => {
+  const translationStatus = $("translation-status");
+  const translationStatusText = translationStatus.textContent, translationStatusClass = translationStatus.className;
+  const updateTranslationOffer = (event) => {
     const selected = $("target-language").value;
+    const languageNotice = AVAILABLE_TARGET_LANGUAGES.has(selected) ? null : targetLanguageNotice(selected);
+    const formatName = $("translation-format").value;
+    const formatNotice = AVAILABLE_FORMATS.has(formatName) ? null : outputFormatNotice(formatName);
+    // Show the message of the control that was just changed, else the other pending one.
+    const notice = event?.target?.id === "translation-format"
+      ? (formatNotice || languageNotice) : (languageNotice || formatNotice);
+    if (notice) {
+      translationStatus.textContent = notice;
+      translationStatus.className = "result-heading warn";
+      return;   // nothing else changes: price, link and delivery date stay as they were
+    }
+    translationStatus.textContent = translationStatusText;
+    translationStatus.className = translationStatusClass;
     const selectedTranslation = (result.translations || []).find((item) => item.target_language === selected) ||
       (translation.target_language === selected ? translation : null);
     $("translate-action").textContent = `Translate for ${price(words, kind, "translate")}`;
