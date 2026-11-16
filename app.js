@@ -86,11 +86,17 @@ function fillSelect(select, options = [], selectedValue) {
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
     if (!artifact) return;
-    for (const key of ["url", "source_text_url", "target_text_url", "image_url"]) {
+    const keys = ["url", "source_text_url", "target_text_url", "image_url"];
+    if (artifact.generated === false) {
+      keys.forEach((key) => delete artifact[key]);
+      return;
+    }
+    for (const key of keys) {
       if (artifact[key]?.startsWith("/")) artifact[key] = api + artifact[key];
     }
   };
   resolve(result.document?.original_preview);
+  Object.values(result.document?.output_formats || {}).forEach(resolve);
   resolve(result.transcription?.text);
   resolve(result.transcription?.document);
   resolve(result.transcription?.preview);
@@ -456,6 +462,7 @@ function renderDiagnostic(diagnostic, api) {
       reduction_percent: target.reduction_percent,
     })),
   };
+  absoluteArtifactUrls(normalized, api);
   render(normalized);
 }
 
@@ -689,6 +696,8 @@ function render(result) {
   const words = documentInfo.word_count ?? result.words ?? 0;
   const language = documentInfo.source_language || result.language || "Unknown";
   const kind = documentInfo.kind || result.kind || "other";
+  const isScannedDocument = documentInfo.mode === "scan" ||
+    ["printed_scan", "handwriting", "scan"].includes(kind);
 
   $("source-status").textContent = statusText(transcription.status, documentInfo.processing_label || "Transcribed document");
   $("source-status").hidden = false;
@@ -699,15 +708,34 @@ function render(result) {
   const metrics = [
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
     el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
-  const transcriptionReduction = documentInfo.size_reduction_basis === "transcription"
-    ? finitePercent(documentInfo.reduction_percent) : null;
-  const transcriptionReductionMetric = sizeReductionMetric(
-    transcriptionReduction,
-    "Transcribed PDF size compared with the uploaded file size."
-  );
-  if (transcriptionReductionMetric) metrics.push(transcriptionReductionMetric);
-  $("stats").replaceChildren(...metrics);
-  $("stats").hidden = false;
+  const updateTranscriptionReduction = (format) => {
+    const formatKey = { "PDF (layer)": "pdf_layer", "PDF (text)": "pdf_text" }[format];
+    const output = formatKey ? documentInfo.output_formats?.[formatKey] : null;
+    let percent = null;
+    if (output?.generated === true) {
+      percent = finitePercent(output.reduction_percent);
+    } else if (format === "PDF (layer)" && output?.generated === false) {
+      percent = 0;
+    } else if (isScannedDocument) {
+      percent = format === "PDF (layer)" && !output ? 0 : null;
+    } else if (!output && documentInfo.size_reduction_basis === "transcription") {
+      percent = finitePercent(documentInfo.reduction_percent);
+    }
+    const stats = [...metrics];
+    const reductionMetric = sizeReductionMetric(
+      percent,
+      format === "PDF (layer)"
+        ? output?.generated === true
+          ? "Generated PDF (layer) size compared with the source PDF."
+          : "No PDF (layer) artifact was generated; no size reduction is expected."
+        : output?.generated === true
+          ? "Generated PDF (text) size compared with the source PDF."
+          : "Transcribed PDF size compared with the uploaded file size."
+    );
+    if (reductionMetric) stats.push(reductionMetric);
+    $("stats").replaceChildren(...stats);
+    $("stats").hidden = false;
+  };
 
   const source = $("source-visual");
   source.style.aspectRatio = `${documentInfo.original_preview?.width || 900} / ${documentInfo.original_preview?.height || 1273}`;
@@ -739,8 +767,13 @@ function render(result) {
   }
 
   const sourceFormats = [...FORMATS];
-  const hasHandwritingLayer = documentInfo.mode === "scan" && kind === "handwriting";
-  fillSelect($("transcribe-format"), sourceFormats, hasHandwritingLayer ? "PDF (layer)" : "PDF (text)");
+  const outputFormatLabels = { pdf_layer: "PDF (layer)", pdf_text: "PDF (text)" };
+  const expectedDefault = isScannedDocument ? "pdf_layer" : "pdf_text";
+  const serverDefault = documentInfo.default_output_format;
+  const defaultFormat = documentInfo.default_output_format === expectedDefault
+    ? outputFormatLabels[serverDefault]
+    : outputFormatLabels[expectedDefault];
+  fillSelect($("transcribe-format"), sourceFormats, defaultFormat);
   $("transcribe-format").parentElement.hidden = false;
   $("transcribe-action").hidden = false;
   $("transcription-delivery").hidden = false;
@@ -748,6 +781,7 @@ function render(result) {
   const sourceStatusText = sourceStatus.textContent, sourceStatusClass = sourceStatus.className;
   const updateTranscriptionOffer = () => {
     const format = $("transcribe-format").value;
+    updateTranscriptionReduction(format);
     if (!AVAILABLE_FORMATS.has(format)) {
       // The notice replaces the "needs human review" heading; nothing else changes.
       sourceStatus.textContent = outputFormatNotice(format);
