@@ -18,6 +18,19 @@ and its translation. Each PNG keeps its opening lines readable and blurs the
 lower portion. Neither PNG contains the source scan. The client holds the
 paywall in a fixed position over the animation.
 
+`document.kind` distinguishes `printed_scan`, `handwriting`, neutral `scan`,
+and `other`. Printed scans do not use the handwriting animation. The client
+shows green OCR boxes only when `preview.word_boxes` is present and
+`preview.box_granularity` is `"word"`; older responses may provide
+`document.word_boxes`.
+
+The transcription reduction is `document.reduction_percent` when
+`document.size_reduction_basis` is `"transcription"`. Each translation may
+provide its own `reduction_percent` alongside `estimated_word_count`; both
+percentages compare the actual output PDF bytes with the uploaded file bytes.
+Reduction values may be negative or `null`; the client hides unavailable
+percentages rather than substituting a value.
+
 ```json
 {
   "schema_version": 2,
@@ -25,7 +38,8 @@ paywall in a fixed position over the animation.
     "word_count": 53,
     "source_language": "Polish",
     "reduction_percent": null,
-    "kind": "handwriting",
+    "size_reduction_basis": "transcription",
+    "kind": "printed_scan",
     "mode": "scan",
     "processing_label": "Transcribed document",
     "original_preview": {
@@ -46,6 +60,7 @@ paywall in a fixed position over the animation.
     "status": "needs_review",
     "target_language": "English",
     "estimated_word_count": 47,
+    "reduction_percent": null,
     "preview": {
       "mode": "scan_text_fade",
       "source_text_url": "/artifact/{job_id}/scan-source-text.png",

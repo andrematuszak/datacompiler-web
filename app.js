@@ -46,11 +46,18 @@ async function apiNotice(response, fallback) {
   }
   return new Error(fallback);
 }
-function formatFileSize(bytes) {
-  if (bytes == null || !Number.isFinite(Number(bytes))) return "not available";
-  const size = Number(bytes) || 0;
-  if (size < 1024 * 1024) return `${Math.max(1, Math.round(size / 1024))} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+function finitePercent(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const percent = Number(value);
+  return Number.isFinite(percent) ? percent : null;
+}
+function sizeReductionMetric(percent, title) {
+  if (percent === null) return null;
+  return el("div", {
+    className: `size-reduction${percent > 0 ? " reduced" : ""}`,
+    title,
+    "aria-label": `${percent}% size reduction. ${title}`,
+  }, el("strong", {}, `${percent}%`), el("span", {}, "size reduction"));
 }
 function price(words, kind, service) { return euros((words || 0) * RATE[service] * (DIFFICULTY[kind] || 1)); }
 function statusText(state, noun) {
@@ -157,7 +164,7 @@ async function process(file) {
     $("work").hidden = true;
     $("upload-panel").hidden = false;
     $("drop").classList.remove("processing-drop");
-    $("drop").querySelector("strong").textContent = "Drop a file here";
+    $("drop").querySelector("strong").textContent = "Drop a file";
     $("drop").querySelector("span").textContent = "or click to upload";
     $("drop").querySelector("small").hidden = true;
   }
@@ -263,8 +270,10 @@ function applyWordHighlights(preview) {
   const pages = row.querySelectorAll(".flow-page");
   const target = pages[pages.length - 1];
   if (!target || target.dataset.highlighted) return;
+  const boxes = ocrWordBoxes(preview);
+  if (!boxes.length) return;
   target.querySelector(".scan-sweep")?.remove();
-  target.append(makeOcrOverlay(preview.word_boxes, "word"));
+  target.append(makeOcrOverlay(boxes, ocrBoxGranularity(preview)));
   target.dataset.highlighted = "1";
 }
 
@@ -276,7 +285,7 @@ function setProgressMode(mode) {
 }
 
 function renderFastLeft(diagnostic, api) {
-  // Left panel: original page, arrow, then the word-highlight GIF from the fast API.
+  // Left panel: original page, arrow, then the server's diagnostic for that scan type.
   const preview = diagnostic.preview || {};
   const original = { url: artifactUrl(api, preview.original_png_url), width: preview.width, height: preview.height };
   const result = { fastDiagnostic: diagnostic, document: { original_preview: original } };
@@ -285,7 +294,7 @@ function renderFastLeft(diagnostic, api) {
   else if (!coreDone) setProgressMode(diagnostic.document?.mode);
   const source = $("source-visual");
   const current = source.querySelector(".source-flow");
-  if (current && current.dataset.anim === anim.key) return;   // same state: leave the GIF playing
+  if (current && current.dataset.anim === diagnosticFlowKey(result, anim)) return;   // same state: leave the GIF playing
   const row = makeDiagnosticSourceFlow(result, anim);
   row.dataset.fast = "1";
   source.classList.add("diagnostic-flow-frame");
@@ -320,7 +329,9 @@ async function startFastPreview(file, firstPageOnlyConfirmed) {
       if (diagnostic.document?.mode === "scan" && diagnostic.preview?.original_png_url) {
         renderFastLeft(diagnostic, api);
         const animation = diagnostic.preview?.animation_status;
-        if (animation === "ready" || animation === "unavailable") return;
+        if (diagnostic.document?.kind === "handwriting" &&
+            (animation === "ready" || animation === "unavailable")) return;
+        if (diagnostic.document?.kind !== "handwriting" && ocrWordBoxes(diagnostic).length) return;
       }
       if (diagnostic.status === "done") return;
     }
@@ -366,10 +377,10 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     if (diagnostic.document?.mode === "native" && diagnostic.status === "preview_ready") {
       return { fallbackToLegacy: true, fallbackReason: "This PDF contains native text; the fast API does not yet build a faithful translated PDF preview." };
     }
-    if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !diagnostic.preview?.word_boxes?.length) {
+    if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !ocrWordBoxes(diagnostic).length) {
       return { fallbackToLegacy: true, fallbackReason: "The OCR service returned no usable detection boxes. Check the Vision worker log." };
     }
-    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${diagnostic.preview?.animation_status || ""}`;
+    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${diagnostic.preview?.animation_status || ""}:${ocrWordBoxes(diagnostic).length}`;
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && previewState !== lastPreviewState) {
       renderDiagnostic(diagnostic, api);
       lastPreviewState = previewState;
@@ -377,7 +388,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     if (diagnostic.status === "done") {
       if (diagnostic.document?.mode === "native") return { fallbackToLegacy: true, fallbackReason: "This PDF contains native text; the fast API does not yet build a faithful translated PDF preview." };
       if (diagnostic.document?.mode === "scan" &&
-          (!diagnostic.preview?.word_boxes?.length || diagnostic.translation_status !== "ready")) {
+          (!ocrWordBoxes(diagnostic).length || diagnostic.translation_status !== "ready")) {
         return { fallbackToLegacy: true, fallbackReason: "OCR or translation returned no preview. Check the API log and its provider configuration." };
       }
       if (diagnostic.document?.mode === "scan") renderDiagnostic(diagnostic, api);
@@ -400,7 +411,7 @@ function renderDiagnostic(diagnostic, api) {
     fastDiagnostic: diagnostic,
     document: {
       ...documentInfo,
-      kind: documentInfo.mode === "scan" ? "handwriting" : "other",
+      kind: documentInfo.kind || (documentInfo.mode === "scan" ? "scan" : "other"),
       original_preview: {
         url: artifactUrl(api, preview.original_png_url),
         width: preview.width,
@@ -412,6 +423,8 @@ function renderDiagnostic(diagnostic, api) {
       status: diagnostic.translation_status === "unavailable" ? "error" :
         diagnostic.status === "preview_ready" ? "processing" : "needs_review",
       target_language: firstTarget.language,
+      estimated_word_count: firstTarget.estimated_word_count,
+      reduction_percent: firstTarget.reduction_percent,
       preview: {
         source_text_url: artifactUrl(api, preview.source_text_png_url),
         target_text_url: artifactUrl(api, firstTarget.sample_png_url),
@@ -420,6 +433,11 @@ function renderDiagnostic(diagnostic, api) {
     targetPreviews: targets.map((target) => ({
       language: target.language,
       url: artifactUrl(api, target.sample_png_url),
+    })),
+    translations: targets.map((target) => ({
+      target_language: target.language,
+      estimated_word_count: target.estimated_word_count,
+      reduction_percent: target.reduction_percent,
     })),
   };
   render(normalized);
@@ -472,6 +490,27 @@ function makeOcrOverlay(boxes, granularity) {
   return overlay;
 }
 
+function ocrWordBoxes(result) {
+  const previewBoxes = result?.preview?.word_boxes;
+  if (Array.isArray(previewBoxes)) {
+    return result.preview.box_granularity === "word" ? previewBoxes : [];
+  }
+  const directBoxes = result?.word_boxes;
+  if (Array.isArray(directBoxes)) {
+    return result.box_granularity === "word" ? directBoxes : [];
+  }
+  const documentBoxes = result?.document?.word_boxes;
+  if (Array.isArray(documentBoxes)) {
+    const granularity = result.document.box_granularity;
+    return granularity === undefined || granularity === "word" ? documentBoxes : [];
+  }
+  return [];
+}
+
+function ocrBoxGranularity(result) {
+  return result?.preview?.box_granularity ?? result?.box_granularity ?? result?.document?.box_granularity;
+}
+
 function diagnosticAnimState(result) {
   const preview = result.fastDiagnostic?.preview || {};
   const url = preview.animation_status === "ready" && preview.animation_gif_url
@@ -481,45 +520,54 @@ function diagnosticAnimState(result) {
   return { state, url, key: `${result.fastDiagnostic?.job_id || ""}:${state}:${url}` };
 }
 
+function diagnosticFlowKey(result, anim) {
+  const diagnostic = result.fastDiagnostic || {};
+  const kind = diagnostic.document?.kind || result.document?.kind || "scan";
+  return `${anim.key}:${kind}:${ocrWordBoxes(diagnostic).length}:${ocrBoxGranularity(diagnostic) || ""}`;
+}
+
 function addScanSweep(page) {
   page.append(el("span", { className: "scan-sweep", "aria-hidden": "true" }));
 }
 
 function makeDiagnosticSourceFlow(result, anim) {
   const info = result.document || {};
-  const preview = result.fastDiagnostic?.preview || {};
+  const diagnostic = result.fastDiagnostic || {};
+  const kind = diagnostic.document?.kind || info.kind || "scan";
+  const boxes = ocrWordBoxes(diagnostic);
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page" },
     el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
   const detected = el("div", { className: "flow-page ocr-page" });
-  if (anim.state === "ready") {
+  if (kind === "handwriting" && anim.state === "ready") {
     detected.append(el("img", { className: "scan-anim", src: anim.url, alt: "First page with the detected words highlighted one after the other" }));
   } else {
     detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
-    if (anim.state === "processing") {
+    if (kind === "handwriting" && anim.state === "processing") {
       detected.classList.add("anim-pending");
       addScanSweep(detected);
       detected.append(el("span", { className: "anim-caption" }, "Detecting words…"));
-    } else {
-      detected.append(makeOcrOverlay(preview.word_boxes, preview.box_granularity));
+    } else if (boxes.length) {
+      detected.append(makeOcrOverlay(boxes, ocrBoxGranularity(diagnostic)));
     }
   }
   source.style.setProperty("--page-ratio", pageRatio);
   detected.style.setProperty("--page-ratio", pageRatio);
   const row = el("div", { className: "flow-row source-flow" }, source, makeFlowArrow("Transcribe"), detected);
-  row.dataset.anim = anim.key;
+  row.dataset.anim = diagnosticFlowKey(result, anim);
   return row;
 }
 
 function makeCoreSourceFlow(result) {
   const info = result.document || {};
   const preview = info.original_preview || {};
+  const boxes = ocrWordBoxes(result);
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
   const makePage = (detected) => {
     const page = el("div", { className: `flow-page${detected ? " ocr-page" : ""}` },
       el("img", { src: preview.url, alt: detected ? "Original page with OCR detections" : "Original unblurred first page" }));
     page.style.setProperty("--page-ratio", ratio);
-    if (detected) page.append(makeOcrOverlay(info.word_boxes, info.box_granularity));
+    if (detected && boxes.length) page.append(makeOcrOverlay(boxes, ocrBoxGranularity(result)));
     return page;
   };
   return el("div", { className: "flow-row source-flow" }, makePage(false), makeFlowArrow("Transcribe"), makePage(true));
@@ -635,16 +683,13 @@ function render(result) {
   const metrics = [
     el("div", {}, el("strong", {}, String(words)), el("span", {}, "words")),
     el("div", {}, el("strong", {}, language), el("span", {}, "language"))];
-  const reduction = Number(documentInfo.reduction_percent);
-  const processedPageNote = documentInfo.first_page_only ? " Only the first page was processed." : "";
-  const comparisonSize = documentInfo.translation_file_size_bytes ?? documentInfo.processed_file_size_bytes;
-  const sizeBasis = documentInfo.size_reduction_basis === "translation" ? "translated file" : "transcribed file";
-  const sizeDetails = `Estimated ${sizeBasis} size: ${formatFileSize(comparisonSize)}; uploaded file: ${formatFileSize(documentInfo.original_file_size_bytes)}.${processedPageNote}`;
-  if (documentInfo.reduction_percent !== null && documentInfo.reduction_percent !== undefined && Number.isFinite(reduction)) {
-    const visibleReduction = Math.max(0, reduction);
-    metrics.push(el("div", { className: `size-reduction${visibleReduction > 0 ? " reduced" : ""}`, title: sizeDetails, "aria-label": `${visibleReduction}% smaller. ${sizeDetails}` },
-      el("strong", {}, `${visibleReduction}%`), el("span", {}, "smaller")));
-  }
+  const transcriptionReduction = documentInfo.size_reduction_basis === "transcription"
+    ? finitePercent(documentInfo.reduction_percent) : null;
+  const transcriptionReductionMetric = sizeReductionMetric(
+    transcriptionReduction,
+    "Transcribed PDF size compared with the uploaded file size."
+  );
+  if (transcriptionReductionMetric) metrics.push(transcriptionReductionMetric);
   $("stats").replaceChildren(...metrics);
   $("stats").hidden = false;
 
@@ -654,15 +699,19 @@ function render(result) {
     source.classList.add("diagnostic-flow-frame");
     const anim = diagnosticAnimState(result);
     const currentRow = source.querySelector(".source-flow");
-    if (!currentRow || currentRow.dataset.anim !== anim.key) {   // same key = leave the GIF playing
+    if (!currentRow || currentRow.dataset.anim !== diagnosticFlowKey(result, anim)) {   // same key = leave the GIF playing
       source.replaceChildren(makeDiagnosticSourceFlow(result, anim));
     }
   } else {
-    if (source.querySelector('.source-flow[data-fast="1"]')) {
+    const hasFastFlow = source.querySelector('.source-flow[data-fast="1"]');
+    if (hasFastFlow && kind !== "handwriting" && documentInfo.original_preview?.url) {
+      source.classList.add("diagnostic-flow-frame");
+      source.replaceChildren(makeCoreSourceFlow(result));
+    } else if (hasFastFlow) {
       source.classList.add("diagnostic-flow-frame");   // keep the GIF row built from the fast API
     } else if (source.querySelector('.source-flow .flow-page[data-highlighted="1"]')) {
       source.classList.add("diagnostic-flow-frame");   // keep the highlight already shown while Core was translating
-    } else if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || documentInfo.word_boxes?.length)) {
+    } else if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || ocrWordBoxes(result).length)) {
       source.classList.add("diagnostic-flow-frame");
       source.replaceChildren(makeCoreSourceFlow(result));
     } else {
@@ -726,8 +775,21 @@ function render(result) {
       (translation.target_language === selected ? translation : null);
     $("translate-action").textContent = `Translate for ${price(words, kind, "translate")}`;
     $("translate-action").href = `/pricing.html?language=${encodeURIComponent(LANGUAGE_CODES[selected] || selected)}&format=${encodeURIComponent($("translation-format").value)}`;
-    const count = Number(selectedTranslation?.estimated_word_count) || null;
-    $("translation-stats").replaceChildren(...(count ? [el("div", {}, el("strong", {}, String(count)), el("span", {}, "estimated words"))] : []));
+    const countValue = selectedTranslation?.estimated_word_count ??
+      (translation.target_language === selected ? translation.estimated_word_count : null);
+    const count = Number(countValue) || null;
+    const translationReductionValue = selectedTranslation?.reduction_percent !== undefined
+      ? selectedTranslation.reduction_percent
+      : translation.target_language === selected ? translation.reduction_percent : null;
+    const translationReduction = finitePercent(translationReductionValue);
+    const translationMetrics = [];
+    if (count) translationMetrics.push(el("div", {}, el("strong", {}, String(count)), el("span", {}, "estimated words")));
+    const translationReductionMetric = sizeReductionMetric(
+      translationReduction,
+      "Translated PDF size compared with the uploaded file size."
+    );
+    if (translationReductionMetric) translationMetrics.push(translationReductionMetric);
+    $("translation-stats").replaceChildren(...translationMetrics);
     $("translation-stats").hidden = false;
     $("translation-delivery").textContent = `Delivery date: ${deliveryDate(count || words)}`;
   };
@@ -760,6 +822,31 @@ zoomDialog.addEventListener("click", (event) => {
   if (event.target === zoomDialog) zoomDialog.close();
 });
 zoomDialog.addEventListener("close", () => zoomImage.removeAttribute("src"));
-["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.add("over"); }));
-["dragleave", "drop"].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (event) => { const file = event.dataTransfer.files[0]; if (file) process(file); });
+let activeFileDrags = 0;
+const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files") || Boolean(event.dataTransfer?.files?.length);
+document.addEventListener("dragenter", (event) => {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  if (drop.classList.contains("processing-drop")) return;
+  activeFileDrags++;
+  drop.classList.add("over");
+});
+document.addEventListener("dragover", (event) => {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+});
+document.addEventListener("dragleave", (event) => {
+  if (!hasDraggedFiles(event)) return;
+  activeFileDrags = Math.max(0, activeFileDrags - 1);
+  if (!activeFileDrags) drop.classList.remove("over");
+});
+document.addEventListener("drop", (event) => {
+  if (!hasDraggedFiles(event)) return;
+  event.preventDefault();
+  activeFileDrags = 0;
+  drop.classList.remove("over");
+  if (drop.classList.contains("processing-drop")) return;
+  const file = event.dataTransfer.files[0];
+  if (file) process(file);
+});
