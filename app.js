@@ -22,6 +22,7 @@ const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+let processingNow = false;   // true only while a file is being processed
 let fastRun = 0;             // identifies the current upload, so an old fast preview cannot draw over a new one
 let progressRendered = false;
 let coreDone = false;
@@ -117,7 +118,16 @@ function updateProcessingStage(stage) {
   $("drop").querySelector("span").textContent = messages[stage] || "Your document is being processed";
 }
 
+function resetForNewFile() {
+  fastRun++;                                   // stops the fast-preview polling of the previous file
+  $("work").hidden = true;                     // back to the upload view, as on a fresh page
+  $("upload-panel").hidden = false;
+  $("source-visual").replaceChildren();        // otherwise renderCoreProgress keeps the previous file's row
+  $("source-visual").classList.remove("diagnostic-flow-frame");
+}
+
 async function process(file) {
+  if (processingNow) return;   // a document is already being processed
   const extension = (/\.[^.]+$/.exec(file.name.toLowerCase()) || [""])[0];
   if (!ACCEPTED_EXTENSIONS.includes(extension)) {
     $("error").textContent = unsupportedFormatMessage(file.name);
@@ -140,6 +150,8 @@ async function process(file) {
     }
     firstPageOnlyConfirmed = true;
   }
+  processingNow = true;
+  resetForNewFile();
   showProcessing();
   try {
     if (CONFIG.DEMO) {
@@ -167,6 +179,9 @@ async function process(file) {
     $("drop").querySelector("strong").textContent = "Drop a file";
     $("drop").querySelector("span").textContent = "or click to upload";
     $("drop").querySelector("small").hidden = true;
+  } finally {
+    processingNow = false;
+    input.value = "";   // lets the user pick the same file again from the file dialog
   }
 }
 
@@ -318,6 +333,7 @@ async function startFastPreview(file, firstPageOnlyConfirmed) {
       const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
       if (!response.ok || run !== fastRun) return;
       const diagnostic = await response.json();
+      if (run !== fastRun) return;   // a newer file replaced this one while the response was parsed
       if (diagnostic.status === "error") return;
       if (diagnostic.document?.mode === "native" && diagnostic.preview?.original_png_url) {
         // Native pages: no GIF. The sweep stays until Core returns the words; here we only learn the mode.
@@ -823,30 +839,33 @@ zoomDialog.addEventListener("click", (event) => {
 });
 zoomDialog.addEventListener("close", () => zoomImage.removeAttribute("src"));
 let activeFileDrags = 0;
-const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files") || Boolean(event.dataTransfer?.files?.length);
+const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
+const setDragging = (on) => {
+  document.body.classList.toggle("file-dragging", on);   // whole-window highlight (the box can be hidden)
+  drop.classList.toggle("over", on);                     // the box itself, when it is visible
+};
 document.addEventListener("dragenter", (event) => {
-  if (!hasDraggedFiles(event)) return;
+  if (!hasDraggedFiles(event) || processingNow) return;
   event.preventDefault();
-  if (drop.classList.contains("processing-drop")) return;
   activeFileDrags++;
-  drop.classList.add("over");
+  setDragging(true);
 });
 document.addEventListener("dragover", (event) => {
   if (!hasDraggedFiles(event)) return;
-  event.preventDefault();
-  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+  event.preventDefault();   // required, otherwise the browser refuses the drop
+  if (event.dataTransfer) event.dataTransfer.dropEffect = processingNow ? "none" : "copy";
 });
 document.addEventListener("dragleave", (event) => {
   if (!hasDraggedFiles(event)) return;
   activeFileDrags = Math.max(0, activeFileDrags - 1);
-  if (!activeFileDrags) drop.classList.remove("over");
+  if (!activeFileDrags) setDragging(false);
 });
 document.addEventListener("drop", (event) => {
   if (!hasDraggedFiles(event)) return;
   event.preventDefault();
   activeFileDrags = 0;
-  drop.classList.remove("over");
-  if (drop.classList.contains("processing-drop")) return;
+  setDragging(false);
+  if (processingNow) return;
   const file = event.dataTransfer.files[0];
   if (file) process(file);
 });
