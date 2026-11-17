@@ -714,10 +714,13 @@ function render(result) {
     let percent = null;
     if (output?.generated === true) {
       percent = finitePercent(output.reduction_percent);
-    } else if (format === "PDF (layer)" && output?.generated === false) {
-      percent = 0;
+    } else if (output?.generated === false) {
+      percent = finitePercent(output.reduction_percent);
+      if (percent === null && format === "PDF (layer)") percent = 0;
     } else if (isScannedDocument) {
       percent = format === "PDF (layer)" && !output ? 0 : null;
+    } else if (!output && formatKey === documentInfo.default_output_format) {
+      percent = finitePercent(documentInfo.reduction_percent);
     } else if (!output && documentInfo.size_reduction_basis === "transcription") {
       percent = finitePercent(documentInfo.reduction_percent);
     }
@@ -768,11 +771,9 @@ function render(result) {
 
   const sourceFormats = [...FORMATS];
   const outputFormatLabels = { pdf_layer: "PDF (layer)", pdf_text: "PDF (text)" };
-  const expectedDefault = isScannedDocument ? "pdf_layer" : "pdf_text";
   const serverDefault = documentInfo.default_output_format;
-  const defaultFormat = documentInfo.default_output_format === expectedDefault
-    ? outputFormatLabels[serverDefault]
-    : outputFormatLabels[expectedDefault];
+  const defaultFormat = outputFormatLabels[serverDefault] ||
+    (isScannedDocument ? "PDF (layer)" : "PDF (text)");
   fillSelect($("transcribe-format"), sourceFormats, defaultFormat);
   $("transcribe-format").parentElement.hidden = false;
   $("transcribe-action").hidden = false;
