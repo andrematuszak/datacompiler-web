@@ -212,3 +212,5 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .guide-meta{color:var(--mute);font-size:14px;margin:0 0 24px}
 .breadcrumb{font-size:14px;color:var(--mute);margin-bottom:8px}
 .breadcrumb a{color:var(--accent);text-decoration:none}
+
+body.file-dragging::after{content:"";position:fixed;z-index:1000;inset:8px;border:4px dashed var(--accent);border-radius:16px;pointer-events:none}

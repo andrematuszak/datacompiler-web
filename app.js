@@ -22,7 +22,8 @@ const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-let processingNow = false;   // true only while a file is being processed
+let processingGeneration = 0;   // bumped per upload: stale async work checks it before touching the DOM
+let processingController = null;   // aborts the fetches of the file being replaced
 let fastRun = 0;             // identifies the current upload, so an old fast preview cannot draw over a new one
 let progressRendered = false;
 let coreDone = false;
@@ -133,7 +134,6 @@ function resetForNewFile() {
 }
 
 async function process(file) {
-  if (processingNow) return;   // a document is already being processed
   const extension = (/\.[^.]+$/.exec(file.name.toLowerCase()) || [""])[0];
   if (!ACCEPTED_EXTENSIONS.includes(extension)) {
     $("error").textContent = unsupportedFormatMessage(file.name);
@@ -156,23 +156,29 @@ async function process(file) {
     }
     firstPageOnlyConfirmed = true;
   }
-  processingNow = true;
+  const generation = ++processingGeneration;
+  processingController?.abort();          // a newer file replaces the one in progress
+  const controller = new AbortController();
+  processingController = controller;
   resetForNewFile();
   showProcessing();
   try {
     if (CONFIG.DEMO) {
-      render(await demoResult());
+      const result = await demoResult();
+      if (generation === processingGeneration && !controller.signal.aborted) render(result);
       return;
     }
     if (!CONFIG.API_BASE.trim()) throw new Error("The Core processing API is not configured.");
     progressRendered = false;
     coreDone = false;
     documentMode = null;
-    startFastPreview(file, firstPageOnlyConfirmed);   // not awaited: the GIF appears while Core is working
-    const result = await callApi(file);
+    startFastPreview(file, firstPageOnlyConfirmed, controller.signal);   // not awaited: the GIF appears while Core is working
+    const result = await callApi(file, controller.signal, generation);
+    if (generation !== processingGeneration || controller.signal.aborted) return;
     coreDone = true;
     render(result);
   } catch (error) {
+    if (generation !== processingGeneration || controller.signal.aborted) return;   // a newer file took over: stay silent
     fastRun++;   // stop the fast preview of this upload
     console.error(error);
     $("error").textContent = error instanceof NoticeError
@@ -186,7 +192,7 @@ async function process(file) {
     $("drop").querySelector("span").textContent = "or click to upload";
     $("drop").querySelector("small").hidden = true;
   } finally {
-    processingNow = false;
+    if (processingController === controller) processingController = null;
     input.value = "";   // lets the user pick the same file again from the file dialog
   }
 }
@@ -201,20 +207,26 @@ async function demoResult() {
   };
 }
 
-async function callApi(file) {
+async function callApi(file, signal, generation) {
   const api = CONFIG.API_BASE.trim().replace(/\/+$/, "");
   if (!api) throw new Error("The full-processing API is not configured.");
+  const stale = () => signal.aborted || generation !== processingGeneration;
   const form = new FormData(); form.append("file", file);
-  const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form });
+  const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form, signal });
+  if (stale()) return null;
   if (!uploaded.ok) throw await apiNotice(uploaded, `Upload failed: HTTP ${uploaded.status}`);
   const { job_id: jobId } = await uploaded.json();
   if (!jobId) throw new Error("The upload response did not include a job id");
+  if (stale()) return null;
   let progressShown = false;
   for (let attempt = 0; attempt < 600; attempt++) {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    const statusResponse = await fetch(`${api}/status/${jobId}`);
+    await sleep(1000);
+    if (stale()) return null;
+    const statusResponse = await fetch(`${api}/status/${jobId}`, { signal });
+    if (stale()) return null;
     if (!statusResponse.ok) throw new Error(`Status failed: HTTP ${statusResponse.status}`);
     const status = await statusResponse.json();
+    if (stale()) return null;
     const { state } = status;
     if (state === "error") throw new Error("The processing service could not complete this document");
     if (!progressShown && status.preview?.original_preview?.url) {
@@ -224,9 +236,11 @@ async function callApi(file) {
     }
     if (status.preview?.word_boxes?.length) applyWordHighlights(status.preview);
     if (state === "done") {
-      const response = await fetch(`${api}/result/${jobId}`);
+      const response = await fetch(`${api}/result/${jobId}`, { signal });
+      if (stale()) return null;
       if (!response.ok) throw new Error(`Result failed: HTTP ${response.status}`);
       const result = await response.json();
+      if (stale()) return null;
       absoluteArtifactUrls(result, api);
       return result;
     }
@@ -322,24 +336,26 @@ function renderFastLeft(diagnostic, api) {
   source.replaceChildren(row);
 }
 
-async function startFastPreview(file, firstPageOnlyConfirmed) {
+async function startFastPreview(file, firstPageOnlyConfirmed, signal) {
   const run = ++fastRun;
   const api = diagnosticApiBase();
   if (!api) return;
+  const stale = () => signal.aborted || run !== fastRun;
   try {
     const form = new FormData();
     form.append("file", file);
     form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
-    const uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form });
-    if (!uploaded.ok) return;   // Core remains the main path
+    const uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form, signal });
+    if (!uploaded.ok || stale()) return;   // Core remains the main path
     const { job_id: jobId } = await uploaded.json();
-    if (!jobId) return;
+    if (!jobId || stale()) return;
     for (let attempt = 0; attempt < 120 && run === fastRun; attempt++) {
       await sleep(attempt ? 750 : 400);
-      const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`);
-      if (!response.ok || run !== fastRun) return;
+      if (stale()) return;
+      const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`, { signal });
+      if (!response.ok || stale()) return;
       const diagnostic = await response.json();
-      if (run !== fastRun) return;   // a newer file replaced this one while the response was parsed
+      if (stale()) return;   // a newer file replaced this one while the response was parsed
       if (diagnostic.status === "error") return;
       if (diagnostic.document?.mode === "native" && diagnostic.preview?.original_png_url) {
         // Native pages: no GIF. The sweep stays until Core returns the words; here we only learn the mode.
@@ -358,6 +374,7 @@ async function startFastPreview(file, firstPageOnlyConfirmed) {
       if (diagnostic.status === "done") return;
     }
   } catch (error) {
+    if (stale()) return;   // replaced by a newer file: not an error
     console.info("Fast preview unavailable; Core processing continues.", error);
   }
 }
@@ -880,7 +897,7 @@ const setDragging = (on) => {
   drop.classList.toggle("over", on);                     // the box itself, when it is visible
 };
 document.addEventListener("dragenter", (event) => {
-  if (!hasDraggedFiles(event) || processingNow) return;
+  if (!hasDraggedFiles(event)) return;
   event.preventDefault();
   activeFileDrags++;
   setDragging(true);
@@ -888,7 +905,7 @@ document.addEventListener("dragenter", (event) => {
 document.addEventListener("dragover", (event) => {
   if (!hasDraggedFiles(event)) return;
   event.preventDefault();   // required, otherwise the browser refuses the drop
-  if (event.dataTransfer) event.dataTransfer.dropEffect = processingNow ? "none" : "copy";
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
 });
 document.addEventListener("dragleave", (event) => {
   if (!hasDraggedFiles(event)) return;
@@ -900,7 +917,6 @@ document.addEventListener("drop", (event) => {
   event.preventDefault();
   activeFileDrags = 0;
   setDragging(false);
-  if (processingNow) return;
   const file = event.dataTransfer.files[0];
   if (file) process(file);
 });
