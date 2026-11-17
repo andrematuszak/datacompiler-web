@@ -716,7 +716,10 @@ function render(result) {
   const isScannedDocument = documentInfo.mode === "scan" ||
     ["printed_scan", "handwriting", "scan"].includes(kind);
 
-  $("source-status").textContent = statusText(transcription.status, documentInfo.processing_label || "Transcribed document");
+  const noTranscriptionNeeded = documentInfo.transcription_needed === false;
+  $("source-status").textContent = noTranscriptionNeeded
+    ? "No transcription needed!"
+    : statusText(transcription.status, documentInfo.processing_label || "Transcribed document");
   $("source-status").hidden = false;
   $("source-status").className = `result-heading ${transcription.status === "ready" ? "ok" : "warn"}`;
   $("translation-status").textContent = statusText(translation.status, "Translation");
@@ -766,6 +769,14 @@ function render(result) {
     if (!currentRow || currentRow.dataset.anim !== diagnosticFlowKey(result, anim)) {   // same key = leave the GIF playing
       source.replaceChildren(makeDiagnosticSourceFlow(result, anim));
     }
+  } else if (noTranscriptionNeeded && documentInfo.original_preview?.url) {
+    // Nothing was transcribed: show the untouched source page in the same page box as the translation.
+    const box = el("div", { className: "native-page-box" },
+      el("img", { className: "native-page native-source", src: documentInfo.original_preview.url, alt: "Original document, no transcription needed" }));
+    box.style.setProperty("--page-ratio", `${documentInfo.original_preview.width || 900} / ${documentInfo.original_preview.height || 1273}`);
+    source.classList.remove("diagnostic-flow-frame");
+    source.classList.add("native-preview");
+    source.replaceChildren(box);
   } else {
     const hasFastFlow = source.querySelector('.source-flow[data-fast="1"]');
     if (hasFastFlow && kind !== "handwriting" && documentInfo.original_preview?.url) {
@@ -793,8 +804,9 @@ function render(result) {
     (isScannedDocument ? "PDF (layer)" : "PDF (text)");
   fillSelect($("transcribe-format"), sourceFormats, defaultFormat);
   $("transcribe-format").parentElement.hidden = false;
-  $("transcribe-action").hidden = false;
-  $("transcription-delivery").hidden = false;
+  // Nothing to order when the source page needs no transcription; the output format stays selectable.
+  $("transcribe-action").hidden = noTranscriptionNeeded;
+  $("transcription-delivery").hidden = noTranscriptionNeeded;
   const sourceStatus = $("source-status");
   const sourceStatusText = sourceStatus.textContent, sourceStatusClass = sourceStatus.className;
   const updateTranscriptionOffer = () => {
