@@ -213,4 +213,3 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .breadcrumb{font-size:14px;color:var(--mute);margin-bottom:8px}
 .breadcrumb a{color:var(--accent);text-decoration:none}
 
-body.file-dragging::after{content:"";position:fixed;z-index:1000;inset:8px;border:4px dashed var(--accent);border-radius:16px;pointer-events:none}

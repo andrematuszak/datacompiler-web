@@ -129,6 +129,11 @@ function resetForNewFile() {
   fastRun++;                                   // stops the fast-preview polling of the previous file
   $("work").hidden = true;                     // back to the upload view, as on a fresh page
   $("upload-panel").hidden = false;
+  $("drop").classList.add("processing-drop");
+  $("drop").querySelector("strong").textContent = "Treatment in progress…";
+  $("drop").querySelector("span").textContent = "Your document is being processed";
+  $("drop").querySelector("small").hidden = true;
+  $("error").hidden = true;
   $("source-visual").replaceChildren();        // otherwise renderCoreProgress keeps the previous file's row
   $("source-visual").classList.remove("diagnostic-flow-frame");
 }
@@ -905,8 +910,7 @@ zoomDialog.addEventListener("close", () => zoomImage.removeAttribute("src"));
 let activeFileDrags = 0;
 const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
 const setDragging = (on) => {
-  document.body.classList.toggle("file-dragging", on);   // whole-window highlight (the box can be hidden)
-  drop.classList.toggle("over", on);                     // the box itself, when it is visible
+  // Accept dropped files without adding a visual drag highlight.
 };
 document.addEventListener("dragenter", (event) => {
   if (!hasDraggedFiles(event)) return;
