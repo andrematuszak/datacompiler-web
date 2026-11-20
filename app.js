@@ -11,11 +11,11 @@ const FORMATS = ["PDF (text)", "PDF (layer)", "DOCX", "TXT", "XLIFF"];
 const FIRST_PAGE_ONLY_THRESHOLD = 10 * 1024 * 1024;   // keep equal to the API constants
 const ACCEPTED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 // Output formats and target languages that really work today. Everything else stays in the
-// lists but answers "coming soon" when selected. Edit these two sets as features ship.
+// lists but invites users to contact us when selected. Edit these sets as features ship.
 const AVAILABLE_FORMATS = new Set(["PDF (text)", "PDF (layer)"]);
-const AVAILABLE_TARGET_LANGUAGES = new Set(["English", "French"]);
-const outputFormatNotice = (name) => `${name} output format not available, coming soon!`;
-const targetLanguageNotice = (name) => `${name} target language not available, coming soon!`;
+const AVAILABLE_TARGET_LANGUAGES = new Set(["English", "French", "Chinese (Simplified)"]);
+const outputFormatNotice = (name) => `${name} isn't available as an output format yet. Contact us for pricing and delivery date.`;
+const targetLanguageNotice = (name) => `${name} isn't available as a target language yet. Contact us for pricing and delivery date.`;
 class NoticeError extends Error {}   // a message meant for the user, shown as is
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
@@ -38,7 +38,7 @@ function el(tag, props = {}, ...children) {
 function unsupportedFormatMessage(fileName) {
   const match = /\.([A-Za-z0-9]{1,5})$/.exec(fileName || "");
   if (!match) return "Please upload a PDF, JPG or PNG file (up to 100 MB).";
-  return `${match[1].toUpperCase()} format not available, coming soon!`;
+  return `${match[1].toUpperCase()} files aren't supported yet. Contact us for pricing and delivery date.`;
 }
 async function apiNotice(response, fallback) {
   // 413 / 415 carry a user-facing sentence in `detail`; show it instead of "HTTP 415".
@@ -262,7 +262,7 @@ function makeProgressFlow(ratio, mode) {
   };
   if (mode === "native") {   // a native PDF has no source box: only the translated page is awaited
     const page = el("div", { className: "flow-page ghost-page" },
-      el("div", { className: "ghost-progress", role: "status" }, el("div", { className: "spinner" }), el("span", {}, "Translation will appear here")));
+      el("div", { className: "ghost-progress", role: "status" }, el("div", { className: "spinner" }), el("span", {}, "Translated document will appear here")));
     page.style.setProperty("--page-ratio", ratio);
     return el("div", { className: "flow-row translation-flow" }, page);
   }
