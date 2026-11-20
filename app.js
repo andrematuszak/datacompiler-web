@@ -791,6 +791,12 @@ function render(result) {
       source.classList.add("diagnostic-flow-frame");   // keep the GIF row built from the fast API
     } else if (source.querySelector('.source-flow .flow-page[data-highlighted="1"]')) {
       source.classList.add("diagnostic-flow-frame");   // keep the highlight already shown while Core was translating
+    } else if (documentInfo.document_type === "mixed_native_and_glyphs" &&
+        source.querySelector(".source-flow") && documentInfo.original_preview?.url) {
+      // Keep the two-page scan frame for mixed native/glyph PDFs after Core
+      // finishes, even when it has no OCR overlay boxes to add.
+      source.classList.add("diagnostic-flow-frame");
+      source.replaceChildren(makeCoreSourceFlow(result));
     } else if (documentInfo.original_preview?.url && (documentInfo.mode === "scan" || ocrWordBoxes(result).length)) {
       source.classList.add("diagnostic-flow-frame");
       source.replaceChildren(makeCoreSourceFlow(result));
