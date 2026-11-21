@@ -9,7 +9,6 @@ const LANGS = ["Chinese (Simplified)", "French", "English", "German", "Spanish",
 const LANGUAGE_CODES = { "Chinese (Simplified)": "zh", French: "fr", English: "en", German: "de", Spanish: "es", Italian: "it", Polish: "pl", Turkish: "tr" };
 const FORMATS = ["PDF (text)", "PDF (layer)", "DOCX", "TXT", "XLIFF"];
 const FIRST_PAGE_ONLY_THRESHOLD = 10 * 1024 * 1024;   // keep equal to the API constants
-const ACCEPTED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 // Output formats and target languages that really work today. Everything else stays in the
 // lists but invites users to contact us when selected. Edit these sets as features ship.
 const AVAILABLE_FORMATS = new Set(["PDF (text)", "PDF (layer)"]);
@@ -17,7 +16,6 @@ const AVAILABLE_TARGET_LANGUAGES = new Set(["English", "French", "Chinese (Simpl
 const outputFormatNotice = (name) => `${name} isn't available as an output format yet. Contact us for pricing and delivery date.`;
 const targetLanguageNotice = (name) => `${name} isn't available as a target language yet. Contact us for pricing and delivery date.`;
 class NoticeError extends Error {}   // a message meant for the user, shown as is
-const MAX_UPLOAD_SIZE = 100 * 1024 * 1024;
 const $ = (id) => document.getElementById(id);
 const euros = (amount) => amount.toLocaleString("en-GB", { style: "currency", currency: "EUR" });
 const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).trim().replace(/\/+$/, "");
@@ -34,11 +32,6 @@ function el(tag, props = {}, ...children) {
   const node = Object.assign(document.createElement(tag), props);
   children.flat().filter((child) => child !== null && child !== undefined).forEach((child) => node.append(child));
   return node;
-}
-function unsupportedFormatMessage(fileName) {
-  const match = /\.([A-Za-z0-9]{1,5})$/.exec(fileName || "");
-  if (!match) return "Please upload a PDF, JPG or PNG file (up to 100 MB).";
-  return `${match[1].toUpperCase()} files aren't supported yet. Contact us for pricing and delivery date.`;
 }
 async function apiNotice(response, fallback) {
   // 413 / 415 carry a user-facing sentence in `detail`; show it instead of "HTTP 415".
@@ -139,18 +132,6 @@ function resetForNewFile() {
 }
 
 async function process(file) {
-  const extension = (/\.[^.]+$/.exec(file.name.toLowerCase()) || [""])[0];
-  if (!ACCEPTED_EXTENSIONS.includes(extension)) {
-    $("error").textContent = unsupportedFormatMessage(file.name);
-    $("error").hidden = false;
-    input.value = "";
-    return;
-  }
-  if (file.size > MAX_UPLOAD_SIZE) {
-    window.alert("File is too large. The upload limit is 100 MB.");
-    input.value = "";
-    return;
-  }
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
   const firstPageOnlyConfirmed = isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD;
   const generation = ++processingGeneration;
