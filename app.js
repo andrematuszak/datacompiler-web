@@ -162,7 +162,7 @@ async function process(file) {
   try {
     if (firstPageOnlyConfirmed) {
       $("drop").querySelector("span").textContent =
-        "File too large. Only the first page will be processed.";
+        "File is too large and only a single page will be processed";
       await sleep(5000);
       if (generation !== processingGeneration || controller.signal.aborted) return;
       showProcessing();
