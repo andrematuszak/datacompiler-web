@@ -152,15 +152,7 @@ async function process(file) {
     return;
   }
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
-  let firstPageOnlyConfirmed = false;
-  if (isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD) {
-    const continueWithFirstPage = window.confirm("This file is larger than 10 MB. Only its first page will be treated. Continue?");
-    if (!continueWithFirstPage) {
-      input.value = "";
-      return;
-    }
-    firstPageOnlyConfirmed = true;
-  }
+  const firstPageOnlyConfirmed = isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD;
   const generation = ++processingGeneration;
   processingController?.abort();          // a newer file replaces the one in progress
   const controller = new AbortController();
@@ -168,6 +160,13 @@ async function process(file) {
   resetForNewFile();
   showProcessing();
   try {
+    if (firstPageOnlyConfirmed) {
+      $("drop").querySelector("span").textContent =
+        "File too large. Only the first page will be processed.";
+      await sleep(5000);
+      if (generation !== processingGeneration || controller.signal.aborted) return;
+      showProcessing();
+    }
     if (CONFIG.DEMO) {
       const result = await demoResult();
       if (generation === processingGeneration && !controller.signal.aborted) render(result);
