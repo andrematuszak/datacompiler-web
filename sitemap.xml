@@ -205,6 +205,30 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://data-compiler.com/guides/pharmacy-document-translation.html</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/translate-documents-english-to-german.html</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/translate-documents-polish-to-english.html</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://data-compiler.com/guides/translate-documents-english-to-chinese.html</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://data-compiler.com/contact.html</loc>
     <lastmod>2026-11-13</lastmod>
     <changefreq>yearly</changefreq>
