@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>DataCompiler – Transcription &amp; traduction de documents en ligne</title>
+  <meta name="description" content="Transcription et traduction de documents : PDF, scans, photos et manuscrits. Prix et délai affichés instantanément, relecture humaine des passages incertains.">
+  <link rel="canonical" href="https://data-compiler.com/fr/">
+  <link rel="alternate" hreflang="fr" href="https://data-compiler.com/fr/">
+  <link rel="alternate" hreflang="en" href="https://data-compiler.com/">
+  <link rel="alternate" hreflang="x-default" href="https://data-compiler.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="DataCompiler">
+  <meta property="og:title" content="DataCompiler – Transcription &amp; traduction de documents">
+  <meta property="og:description" content="Transcription et traduction de PDF, scans et manuscrits avec prix instantané.">
+  <meta property="og:url" content="https://data-compiler.com/fr/">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="DataCompiler – Transcription &amp; traduction de documents">
+  <meta name="twitter:description" content="Transcription et traduction de documents avec prix instantané.">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;600;700&family=Source+Serif+4&display=swap">
+</head>
+<body>
+  <header><div class="wrap"><a class="logo" href="/fr/">DataCompiler</a><nav aria-label="Navigation principale"><a href="/fr/tarifs.html">Tarifs</a><a href="/fr/guides.html">Guides</a><a href="/contact.html">Contact</a><a href="/clients.html">Clients</a><a href="/professionals.html">Professionals</a><a href="/fr/faq.html">FAQ</a><a href="/" hreflang="en">EN</a></nav></div></header>
+  <main class="wrap">
+    <h1 class="sr-only">Transcription et traduction de documents en ligne</h1>
+    <section class="upload-panel" aria-label="Téléverser un document">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choisir ou déposer un PDF">
+        <strong>Déposez un fichier</strong><span>ou cliquez pour téléverser</span><small hidden>PDF, JPG ou PNG</small>
+        <input id="file" type="file" hidden>
+      </div>
+      <p id="error" class="status warn" hidden role="alert"></p>
+    </section>
+    <section id="work" hidden>
+      <div class="work-grid">
+        <article class="card preview-card">
+          <h2>Transcription</h2>
+          <div id="transcription-view"></div>
+          <p id="transcription-status" class="status" hidden></p>
+        </article>
+        <article class="card preview-card">
+          <h2>Traduction</h2>
+          <div id="translation-view"></div>
+          <p id="translation-status" class="status" hidden></p>
+        </article>
+      </div>
+      <div class="actions">
+        <button id="order" class="btn" hidden>Commander</button>
+        <button id="download" class="btn secondary" hidden>Télécharger</button>
+      </div>
+    </section>
+    <section class="guide-body" style="margin-top:48px">
+      <h2>Ce que fait DataCompiler</h2>
+      <p>Téléversez un document — PDF, scan, photo ou manuscrit — et DataCompiler le transcrit dans sa langue source, puis le traduit dans la langue de votre choix : chinois (simplifié), français, anglais, allemand, espagnol, italien, polonais ou turc, dans les deux sens.</p>
+      <p>Le prix exact et la date de livraison sont affichés dès le téléversement, avant tout engagement. Les passages incertains sont signalés puis vérifiés par un relecteur humain avant livraison.</p>
+      <p>Idéal pour les <strong>contrats</strong>, <strong>factures</strong>, <strong>certificats</strong>, <strong>documents administratifs</strong> et tout document qui pose problème aux outils de traduction classiques — voir <a href="/fr/service-traduction-documents.html">le service de traduction de documents</a>.</p>
+    </section>
+  </main>
+  <footer><div class="wrap">© DataCompiler 2026 · <a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
+  <dialog id="image-zoom"><img id="image-zoom-img" alt=""><form method="dialog"><button class="btn secondary">Fermer</button></form></dialog>
+  <script src="/app.js"></script>
+</body>
+</html>
