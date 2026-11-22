@@ -797,14 +797,37 @@ function render(result) {
     (isScannedDocument ? "PDF (layer)" : "PDF (text)");
   fillSelect($("transcribe-format"), sourceFormats, defaultFormat);
   $("transcribe-format").parentElement.hidden = false;
-  // Nothing to order when the source page needs no transcription; the output format stays selectable.
-  $("transcribe-action").hidden = noTranscriptionNeeded;
-  $("transcription-delivery").hidden = noTranscriptionNeeded;
+  const transcriptionAction = $("transcribe-action");
+  const transcriptionDelivery = $("transcription-delivery");
+  const formatLabel = $("transcribe-format").parentElement.querySelector("span");
+  formatLabel.textContent = noTranscriptionNeeded ? "Download as" : "Transcribe to";
+  transcriptionAction.hidden = false;
+  transcriptionDelivery.hidden = noTranscriptionNeeded;
   const sourceStatus = $("source-status");
   const sourceStatusText = sourceStatus.textContent, sourceStatusClass = sourceStatus.className;
   const updateTranscriptionOffer = () => {
     const format = $("transcribe-format").value;
     updateTranscriptionReduction(format);
+    if (noTranscriptionNeeded) {
+      sourceStatus.textContent = sourceStatusText;
+      sourceStatus.className = sourceStatusClass;
+      const formatKey = { "PDF (layer)": "pdf_layer", "PDF (text)": "pdf_text" }[format];
+      const output = formatKey ? documentInfo.output_formats?.[formatKey] : null;
+      if (output?.generated === true && output.url) {
+        transcriptionAction.textContent = "Download";
+        transcriptionAction.href = output.url;
+        transcriptionAction.removeAttribute("download");
+        transcriptionAction.hidden = false;
+      } else {
+        sourceStatus.textContent = AVAILABLE_FORMATS.has(format)
+          ? `${format} is not available for this document.`
+          : outputFormatNotice(format);
+        sourceStatus.className = "result-heading warn";
+        transcriptionAction.removeAttribute("href");
+        transcriptionAction.hidden = true;
+      }
+      return;
+    }
     if (!AVAILABLE_FORMATS.has(format)) {
       // The notice replaces the "needs human review" heading; nothing else changes.
       sourceStatus.textContent = outputFormatNotice(format);
@@ -813,8 +836,8 @@ function render(result) {
     }
     sourceStatus.textContent = sourceStatusText;
     sourceStatus.className = sourceStatusClass;
-    $("transcribe-action").textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
-    $("transcribe-action").href = `/pricing.html?service=transcription&format=${encodeURIComponent($("transcribe-format").value)}`;
+    transcriptionAction.textContent = `Transcribe for ${price(words, kind, "transcribe")}`;
+    transcriptionAction.href = `/pricing.html?service=transcription&format=${encodeURIComponent($("transcribe-format").value)}`;
   };
   $("transcribe-format").onchange = updateTranscriptionOffer;
   updateTranscriptionOffer();
