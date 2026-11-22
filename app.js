@@ -95,7 +95,11 @@ function absoluteArtifactUrls(result, api) {
   resolve(result.transcription?.document);
   resolve(result.transcription?.preview);
   resolve(result.translation?.preview);
-  (result.translations || []).forEach((translation) => resolve(translation.preview));
+  resolve(result.translation?.document);
+  (result.translations || []).forEach((translation) => {
+    resolve(translation.preview);
+    resolve(translation.document);
+  });
 }
 function showProcessing() {
   $("error").hidden = true;
@@ -860,17 +864,36 @@ function render(result) {
     // Show the message of the control that was just changed, else the other pending one.
     const notice = event?.target?.id === "translation-format"
       ? (formatNotice || languageNotice) : (languageNotice || formatNotice);
+    const translationAction = $("translate-action");
+    const translationDelivery = $("translation-delivery");
+    const pricingUrl = `/pricing.html?language=${encodeURIComponent(LANGUAGE_CODES[selected] || selected)}&format=${encodeURIComponent(formatName)}`;
+    const setPaidOffer = () => {
+      translationAction.textContent = `Translate for ${price(words, kind, "translate")}`;
+      translationAction.href = pricingUrl;
+      translationDelivery.hidden = false;
+    };
     if (notice) {
       translationStatus.textContent = notice;
       translationStatus.className = "result-heading warn";
-      return;   // nothing else changes: price, link and delivery date stay as they were
+      setPaidOffer();
+      return;
     }
     translationStatus.textContent = translationStatusText;
     translationStatus.className = translationStatusClass;
     const selectedTranslation = (result.translations || []).find((item) => item.target_language === selected) ||
       (translation.target_language === selected ? translation : null);
-    $("translate-action").textContent = `Translate for ${price(words, kind, "translate")}`;
-    $("translate-action").href = `/pricing.html?language=${encodeURIComponent(LANGUAGE_CODES[selected] || selected)}&format=${encodeURIComponent($("translation-format").value)}`;
+    const freeDownloadUrl = selectedTranslation?.status === "ready"
+      && selectedTranslation.preview_has_blurred_words === false
+      && formatName === "PDF (text)"
+      ? selectedTranslation.document?.url
+      : null;
+    if (freeDownloadUrl) {
+      translationAction.textContent = "Download";
+      translationAction.href = freeDownloadUrl;
+      translationDelivery.hidden = true;
+    } else {
+      setPaidOffer();
+    }
     const countValue = selectedTranslation?.estimated_word_count ??
       (translation.target_language === selected ? translation.estimated_word_count : null);
     const count = Number(countValue) || null;
@@ -887,7 +910,7 @@ function render(result) {
     if (translationReductionMetric) translationMetrics.push(translationReductionMetric);
     $("translation-stats").replaceChildren(...translationMetrics);
     $("translation-stats").hidden = false;
-    $("translation-delivery").textContent = `Delivery date: ${deliveryDate(count || words)}`;
+    translationDelivery.textContent = `Delivery date: ${deliveryDate(count || words)}`;
   };
   $("target-language").onchange = updateTranslationOffer;
   $("translation-format").onchange = updateTranslationOffer;
