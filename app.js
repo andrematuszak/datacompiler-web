@@ -56,7 +56,7 @@ function sizeReductionMetric(percent, title) {
 }
 function price(words, kind, service) { return euros((words || 0) * RATE[service] * (DIFFICULTY[kind] || 1)); }
 function statusText(state, noun) {
-  if (state === "ready") return `${noun} is ready`;
+  if (state === "ready") return `${noun} is ready!`;
   if (state === "needs_review") return `${noun} needs human review`;
   if (state === "error") return `${noun} could not be completed`;
   return `${noun} is being processed`;
@@ -703,11 +703,13 @@ function render(result) {
 
   const noTranscriptionNeeded = documentInfo.transcription_needed === false;
   $("source-status").textContent = noTranscriptionNeeded
-    ? "No transcription needed!"
+    ? "Transcribed document is ready!"
     : statusText(transcription.status, documentInfo.processing_label || "Transcribed document");
   $("source-status").hidden = false;
   $("source-status").className = `result-heading ${transcription.status === "ready" ? "ok" : "warn"}`;
-  $("translation-status").textContent = statusText(translation.status, "Translation");
+  $("translation-status").textContent = translation.status === "ready"
+    ? "Translated document is ready!"
+    : statusText(translation.status, "Translation");
   $("translation-status").hidden = false;
   $("translation-status").className = `result-heading ${translation.status === "ready" ? "ok" : "warn"}`;
   const metrics = [
