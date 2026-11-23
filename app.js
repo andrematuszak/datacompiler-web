@@ -138,6 +138,7 @@ function resetForNewFile() {
 async function process(file) {
   const isPdf = file.name.toLowerCase().endsWith(".pdf");
   const firstPageOnlyConfirmed = isPdf && file.size > FIRST_PAGE_ONLY_THRESHOLD;
+  const requestId = crypto.randomUUID().replace(/-/g, "");
   const generation = ++processingGeneration;
   processingController?.abort();          // a newer file replaces the one in progress
   const controller = new AbortController();
@@ -161,8 +162,8 @@ async function process(file) {
     progressRendered = false;
     coreDone = false;
     documentMode = null;
-    startFastPreview(file, firstPageOnlyConfirmed, controller.signal);   // not awaited: the GIF appears while Core is working
-    const result = await callApi(file, controller.signal, generation);
+    startFastPreview(file, firstPageOnlyConfirmed, controller.signal, requestId);   // not awaited: the GIF appears while Core is working
+    const result = await callApi(file, controller.signal, generation, requestId);
     if (generation !== processingGeneration || controller.signal.aborted) return;
     coreDone = true;
     render(result);
@@ -196,11 +197,11 @@ async function demoResult() {
   };
 }
 
-async function callApi(file, signal, generation) {
+async function callApi(file, signal, generation, requestId) {
   const api = CONFIG.API_BASE.trim().replace(/\/+$/, "");
   if (!api) throw new Error("The full-processing API is not configured.");
   const stale = () => signal.aborted || generation !== processingGeneration;
-  const form = new FormData(); form.append("file", file);
+  const form = new FormData(); form.append("file", file); form.append("request_id", requestId);
   const uploaded = await fetch(`${api}/upload`, { method: "POST", body: form, signal });
   if (stale()) return null;
   if (!uploaded.ok) throw await apiNotice(uploaded, `Upload failed: HTTP ${uploaded.status}`);
@@ -325,7 +326,7 @@ function renderFastLeft(diagnostic, api) {
   source.replaceChildren(row);
 }
 
-async function startFastPreview(file, firstPageOnlyConfirmed, signal) {
+async function startFastPreview(file, firstPageOnlyConfirmed, signal, requestId) {
   const run = ++fastRun;
   const api = diagnosticApiBase();
   if (!api) return;
@@ -333,6 +334,7 @@ async function startFastPreview(file, firstPageOnlyConfirmed, signal) {
   try {
     const form = new FormData();
     form.append("file", file);
+    form.append("request_id", requestId);
     form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
     const uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form, signal });
     if (!uploaded.ok || stale()) return;   // Core remains the main path
@@ -368,10 +370,11 @@ async function startFastPreview(file, firstPageOnlyConfirmed, signal) {
   }
 }
 
-async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
+async function callDiagnosticApi(file, firstPageOnlyConfirmed, requestId = crypto.randomUUID().replace(/-/g, "")) {
   const api = diagnosticApiBase();
   const form = new FormData();
   form.append("file", file);
+  form.append("request_id", requestId);
   form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
   let uploaded;
   try {
@@ -386,7 +389,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed) {
     if (detail.detail?.code === "first_page_confirmation_required") {
       const confirmed = window.confirm(detail.detail.message || "Only the first page will be treated. Continue?");
       if (!confirmed) throw new Error("First-page-only processing was cancelled.");
-      return callDiagnosticApi(file, true);
+      return callDiagnosticApi(file, true, requestId);
     }
   }
   if (!uploaded.ok) throw await apiNotice(uploaded, `Diagnostic upload failed: HTTP ${uploaded.status}`);
