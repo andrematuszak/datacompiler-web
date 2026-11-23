@@ -358,9 +358,8 @@ async function startFastPreview(file, firstPageOnlyConfirmed, signal, requestId)
       if (diagnostic.document?.mode === "scan" && diagnostic.preview?.original_png_url) {
         renderFastLeft(diagnostic, api);
         const animation = diagnostic.preview?.animation_status;
-        if (diagnostic.document?.kind === "handwriting" &&
-            (animation === "ready" || animation === "unavailable")) return;
-        if (diagnostic.document?.kind !== "handwriting" && ocrWordBoxes(diagnostic).length) return;
+        if (animation === "ready" ||
+            (animation === "unavailable" && (diagnostic.document?.kind === "handwriting" || ocrWordBoxes(diagnostic).length))) return;
       }
       if (diagnostic.status === "done") return;
     }
@@ -565,17 +564,16 @@ function addScanSweep(page) {
 function makeDiagnosticSourceFlow(result, anim) {
   const info = result.document || {};
   const diagnostic = result.fastDiagnostic || {};
-  const kind = diagnostic.document?.kind || info.kind || "scan";
   const boxes = ocrWordBoxes(diagnostic);
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page" },
     el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
   const detected = el("div", { className: "flow-page ocr-page" });
-  if (kind === "handwriting" && anim.state === "ready") {
+  if (anim.state === "ready") {
     detected.append(el("img", { className: "scan-anim", src: anim.url, alt: "First page with the detected words highlighted one after the other" }));
   } else {
     detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
-    if (kind === "handwriting" && anim.state === "processing") {
+    if (anim.state === "processing") {
       detected.classList.add("anim-pending");
       addScanSweep(detected);
       detected.append(el("span", { className: "anim-caption" }, "Detecting words…"));
