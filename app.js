@@ -22,7 +22,6 @@ const diagnosticApiBase = () => (CONFIG.DIAGNOSTIC_API_BASE || CONFIG.API_BASE).
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let processingGeneration = 0;   // bumped per upload: stale async work checks it before touching the DOM
 let processingController = null;   // aborts the fetches of the file being replaced
-let fastRun = 0;             // identifies the current upload, so an old fast preview cannot draw over a new one
 let progressRendered = false;
 let coreDone = false;
 let documentMode = null;     // "scan" or "native", known from the fast API
@@ -123,7 +122,6 @@ function updateProcessingStage(stage) {
 }
 
 function resetForNewFile() {
-  fastRun++;                                   // stops the fast-preview polling of the previous file
   $("work").hidden = true;                     // back to the upload view, as on a fresh page
   $("upload-panel").hidden = false;
   $("drop").classList.add("processing-drop");
@@ -162,14 +160,12 @@ async function process(file) {
     progressRendered = false;
     coreDone = false;
     documentMode = null;
-    startFastPreview(file, firstPageOnlyConfirmed, controller.signal, requestId);   // not awaited: the GIF appears while Core is working
     const result = await callApi(file, controller.signal, generation, requestId);
     if (generation !== processingGeneration || controller.signal.aborted) return;
     coreDone = true;
     render(result);
   } catch (error) {
     if (generation !== processingGeneration || controller.signal.aborted) return;   // a newer file took over: stay silent
-    fastRun++;   // stop the fast preview of this upload
     console.error(error);
     $("error").textContent = error instanceof NoticeError
       ? error.message
@@ -309,66 +305,6 @@ function setProgressMode(mode) {
   if (visual?.classList.contains("translation-progress")) visual.replaceChildren(makeProgressFlow(progressRatio, mode));
 }
 
-function renderFastLeft(diagnostic, api) {
-  // Left panel: original page, arrow, then the server's diagnostic for that scan type.
-  const preview = diagnostic.preview || {};
-  const original = { url: artifactUrl(api, preview.original_png_url), width: preview.width, height: preview.height };
-  const result = { fastDiagnostic: diagnostic, document: { original_preview: original } };
-  const anim = diagnosticAnimState(result);
-  if (!progressRendered && !coreDone) renderCoreProgress(original, diagnostic.document?.mode);
-  else if (!coreDone) setProgressMode(diagnostic.document?.mode);
-  const source = $("source-visual");
-  const current = source.querySelector(".source-flow");
-  if (current && current.dataset.anim === diagnosticFlowKey(result, anim)) return;   // same state: leave the GIF playing
-  const row = makeDiagnosticSourceFlow(result, anim);
-  row.dataset.fast = "1";
-  source.classList.add("diagnostic-flow-frame");
-  source.replaceChildren(row);
-}
-
-async function startFastPreview(file, firstPageOnlyConfirmed, signal, requestId) {
-  const run = ++fastRun;
-  const api = diagnosticApiBase();
-  if (!api) return;
-  const stale = () => signal.aborted || run !== fastRun;
-  try {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("request_id", requestId);
-    form.append("first_page_only_confirmed", String(firstPageOnlyConfirmed));
-    const uploaded = await fetch(`${api}/v1/diagnostics`, { method: "POST", body: form, signal });
-    if (!uploaded.ok || stale()) return;   // Core remains the main path
-    const { job_id: jobId } = await uploaded.json();
-    if (!jobId || stale()) return;
-    for (let attempt = 0; attempt < 120 && run === fastRun; attempt++) {
-      await sleep(attempt ? 750 : 400);
-      if (stale()) return;
-      const response = await fetch(`${api}/v1/diagnostics/${encodeURIComponent(jobId)}`, { signal });
-      if (!response.ok || stale()) return;
-      const diagnostic = await response.json();
-      if (stale()) return;   // a newer file replaced this one while the response was parsed
-      if (diagnostic.status === "error") return;
-      if (diagnostic.document?.mode === "native" && diagnostic.preview?.original_png_url) {
-        // Native pages: no GIF. The sweep stays until Core returns the words; here we only learn the mode.
-        const original = { url: artifactUrl(api, diagnostic.preview.original_png_url), width: diagnostic.preview.width, height: diagnostic.preview.height };
-        if (!progressRendered && !coreDone) renderCoreProgress(original, "native");
-        else if (!coreDone) setProgressMode("native");
-        return;
-      }
-      if (diagnostic.document?.mode === "scan" && diagnostic.preview?.original_png_url) {
-        renderFastLeft(diagnostic, api);
-        const animation = diagnostic.preview?.animation_status;
-        if (animation === "ready" ||
-            (animation === "unavailable" && (diagnostic.document?.kind === "handwriting" || ocrWordBoxes(diagnostic).length))) return;
-      }
-      if (diagnostic.status === "done") return;
-    }
-  } catch (error) {
-    if (stale()) return;   // replaced by a newer file: not an error
-    console.info("Fast preview unavailable; Core processing continues.", error);
-  }
-}
-
 async function callDiagnosticApi(file, firstPageOnlyConfirmed, requestId = crypto.randomUUID().replace(/-/g, "")) {
   const api = diagnosticApiBase();
   const form = new FormData();
@@ -410,7 +346,7 @@ async function callDiagnosticApi(file, firstPageOnlyConfirmed, requestId = crypt
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && !ocrWordBoxes(diagnostic).length) {
       return { fallbackToLegacy: true, fallbackReason: "The OCR service returned no usable detection boxes. Check the Vision worker log." };
     }
-    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${diagnostic.preview?.animation_status || ""}:${ocrWordBoxes(diagnostic).length}`;
+    const previewState = `${diagnostic.status}:${diagnostic.translations?.length || 0}:${diagnostic.translation_status || ""}:${ocrWordBoxes(diagnostic).length}`;
     if (diagnostic.document?.mode === "scan" && diagnostic.status === "preview_ready" && previewState !== lastPreviewState) {
       renderDiagnostic(diagnostic, api);
       lastPreviewState = previewState;
@@ -543,12 +479,7 @@ function ocrBoxGranularity(result) {
 }
 
 function diagnosticAnimState(result) {
-  const preview = result.fastDiagnostic?.preview || {};
-  const url = preview.animation_status === "ready" && preview.animation_gif_url
-    ? artifactUrl(diagnosticApiBase(), preview.animation_gif_url) : "";
-  const state = url ? "ready" : (preview.animation_status === "processing" ? "processing" : "unavailable");
-  // The key identifies what the left row shows, so a re-render does not restart the GIF.
-  return { state, url, key: `${result.fastDiagnostic?.job_id || ""}:${state}:${url}` };
+  return { state: "unavailable", url: "", key: `${result.fastDiagnostic?.job_id || ""}:unavailable` };
 }
 
 function diagnosticFlowKey(result, anim) {
@@ -569,17 +500,9 @@ function makeDiagnosticSourceFlow(result, anim) {
   const source = el("div", { className: "flow-page" },
     el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
   const detected = el("div", { className: "flow-page ocr-page" });
-  if (anim.state === "ready") {
-    detected.append(el("img", { className: "scan-anim", src: anim.url, alt: "First page with the detected words highlighted one after the other" }));
-  } else {
-    detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
-    if (anim.state === "processing") {
-      detected.classList.add("anim-pending");
-      addScanSweep(detected);
-      detected.append(el("span", { className: "anim-caption" }, "Detecting words…"));
-    } else if (boxes.length) {
-      detected.append(makeOcrOverlay(boxes, ocrBoxGranularity(diagnostic)));
-    }
+  detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
+  if (boxes.length) {
+    detected.append(makeOcrOverlay(boxes, ocrBoxGranularity(diagnostic)));
   }
   source.style.setProperty("--page-ratio", pageRatio);
   detected.style.setProperty("--page-ratio", pageRatio);
