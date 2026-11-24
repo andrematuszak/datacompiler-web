@@ -129,8 +129,19 @@ function resetForNewFile() {
   $("drop").querySelector("span").textContent = "Your document is being processed";
   $("drop").querySelector("small").hidden = true;
   $("error").hidden = true;
+  $("source-status").textContent = "";
+  $("source-status").hidden = true;
+  $("translation-status").textContent = "";
+  $("translation-status").hidden = true;
+  $("stats").replaceChildren();
+  $("stats").hidden = true;
+  $("translation-stats").replaceChildren();
+  $("translation-stats").hidden = true;
   $("source-visual").replaceChildren();        // otherwise renderCoreProgress keeps the previous file's row
   $("source-visual").classList.remove("diagnostic-flow-frame");
+  $("source-visual").style.removeProperty("aspect-ratio");
+  $("translation-visual").replaceChildren();
+  $("translation-visual").className = "visual-frame";
 }
 
 async function process(file) {
@@ -271,7 +282,7 @@ function renderCoreProgress(preview, mode) {
   $("source-status").textContent = "Transcription in progress…";
   $("source-status").hidden = false;
   $("source-status").className = "result-heading progress-heading";
-  $("stats").hidden = false; $("transcription-delivery").hidden = true;
+  $("stats").hidden = true; $("transcription-delivery").hidden = true;
   $("transcribe-action").hidden = true; $("transcribe-format").parentElement.hidden = true;
   const visual = $("translation-visual"); visual.className = "visual-frame translation-progress";
   visual.replaceChildren(makeProgressFlow(ratio, documentMode));
