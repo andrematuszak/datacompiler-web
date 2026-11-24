@@ -632,7 +632,7 @@ function render(result) {
   const noTranscriptionNeeded = documentInfo.transcription_needed === false;
   $("source-status").textContent = noTranscriptionNeeded
     ? "Transcribed document is ready!"
-    : statusText(transcription.status, documentInfo.processing_label || "Transcribed document");
+    : statusText(transcription.status, documentInfo.processing_label || "Transcription");
   $("source-status").hidden = false;
   $("source-status").className = `result-heading ${transcription.status === "ready" ? "ok" : "warn"}`;
   $("translation-status").textContent = translation.status === "ready"
