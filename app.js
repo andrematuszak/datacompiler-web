@@ -5,8 +5,8 @@ const CONFIG = {
 };
 const RATE = { transcribe: 0.02, translate: 0.05 };
 const DIFFICULTY = { fiscal: 1.0, legal: 1.3, handwriting: 1.6, other: 1.0 };
-const LANGS = ["Chinese (Simplified)", "French", "English", "German", "Spanish", "Italian", "Polish", "Turkish"];
-const LANGUAGE_CODES = { "Chinese (Simplified)": "zh", French: "fr", English: "en", German: "de", Spanish: "es", Italian: "it", Polish: "pl", Turkish: "tr" };
+const LANGS = ["Chinese (Simplified)", "French", "English", "German", "Spanish", "Italian", "Polish", "Turkish", "Lithuanian"];
+const LANGUAGE_CODES = { "Chinese (Simplified)": "zh", French: "fr", English: "en", German: "de", Spanish: "es", Italian: "it", Polish: "pl", Turkish: "tr", Lithuanian: "lt" };
 const FORMATS = ["PDF (text)", "PDF (layer)", "DOCX", "TXT", "XLIFF"];
 const FIRST_PAGE_ONLY_THRESHOLD = 10 * 1024 * 1024;   // keep equal to the API constants
 // Output formats and target languages that really work today. Everything else stays in the
