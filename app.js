@@ -682,6 +682,9 @@ function render(result) {
           : "Transcribed PDF size compared with the uploaded file size."
     );
     if (reductionMetric) stats.push(reductionMetric);
+    if (documentInfo.page_count !== null && documentInfo.page_count !== undefined) {
+      stats.push(el("div", {}, el("strong", {}, String(documentInfo.page_count)), el("span", {}, "pages")));
+    }
     $("stats").replaceChildren(...stats);
     $("stats").hidden = false;
   };
