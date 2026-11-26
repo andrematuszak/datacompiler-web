@@ -83,7 +83,7 @@ function fillSelect(select, options = [], selectedValue) {
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
     if (!artifact) return;
-    const keys = ["url", "source_text_url", "target_text_url", "image_url", "zoom_preview_url"];
+    const keys = ["url", "source_text_url", "target_text_url", "image_url", "zoom_preview_url", "zoom_original_preview_url"];
     if (artifact.generated === false) {
       keys.forEach((key) => delete artifact[key]);
       return;
@@ -516,7 +516,7 @@ function makeDiagnosticSourceFlow(result, anim) {
   const boxes = ocrWordBoxes(diagnostic);
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page" },
-    el("img", { src: info.original_preview.url, alt: "Original unblurred first page", dataset: { zoomKind: "source" } }));
+    el("img", { src: info.original_preview.url, alt: "Original unblurred first page", dataset: { zoomKind: "source-plain" } }));
   const detected = el("div", { className: "flow-page ocr-page" });
   detected.append(el("img", { src: info.original_preview.url, alt: "First page", dataset: { zoomKind: "source" } }));
   if (boxes.length) {
@@ -536,7 +536,7 @@ function makeCoreSourceFlow(result) {
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
   const makePage = (detected) => {
     const page = el("div", { className: `flow-page${detected ? " ocr-page" : ""}` },
-      el("img", { src: preview.url, alt: detected ? "Original page with OCR detections" : "Original unblurred first page", dataset: { zoomKind: "source" } }));
+      el("img", { src: preview.url, alt: detected ? "Original page with OCR detections" : "Original unblurred first page", dataset: { zoomKind: detected ? "source" : "source-plain" } }));
     page.style.setProperty("--page-ratio", ratio);
     if (detected && boxes.length) page.append(makeOcrOverlay(boxes, ocrBoxGranularity(result)));
     return page;
@@ -551,7 +551,7 @@ function makeDiagnosticTranslationFlow(result) {
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page text-preview" },
     preview.source_text_png_url
-      ? el("img", { src: artifactUrl(diagnosticApiBase(), preview.source_text_png_url), alt: `${info.source_language || "Source"} transcription preview`, dataset: { zoomKind: "source" } })
+      ? el("img", { src: artifactUrl(diagnosticApiBase(), preview.source_text_png_url), alt: `${info.source_language || "Source"} transcription preview`, dataset: { zoomKind: "source-plain" } })
       : el("span", { className: "missing-source" }, "Preparing source text preview…"));
   const targetPage = el("div", { className: "flow-page target-preview" });
   source.style.setProperty("--page-ratio", pageRatio);
@@ -594,7 +594,7 @@ function makeVisualFrame(result) {
     frame.classList.add("diagnostic-flow-frame");
     const pageRatio = `${width} / ${height}`;
     const sourcePage = el("div", { className: "flow-page text-preview" },
-      sourceUrl ? el("img", { src: sourceUrl, alt: `${documentInfo.source_language || "Source"} transcription text`, dataset: { zoomKind: "source" } }) : el("span", { className: "missing-preview" }, "Transcription preview unavailable."));
+      sourceUrl ? el("img", { src: sourceUrl, alt: `${documentInfo.source_language || "Source"} transcription text`, dataset: { zoomKind: "source-plain" } }) : el("span", { className: "missing-preview" }, "Transcription preview unavailable."));
     const targetPage = el("div", { className: "flow-page text-preview" },
       targetUrl ? el("img", { src: targetUrl, alt: `${translation.target_language || "Translated"} text`, dataset: { zoomKind: `target-${translation.target_language_code || "en"}` } }) : el("span", { className: "missing-preview" }, "Translation preview unavailable."));
     sourcePage.style.setProperty("--page-ratio", pageRatio);
@@ -618,7 +618,7 @@ function makeVisualFrame(result) {
       return box;
     };
     const sourceBox = original.url
-      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: "source" } }))
+      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: "source-plain" } }))
       : null;
     let targetBox;
     if (targets.length > 1) {
@@ -918,12 +918,14 @@ $("work").addEventListener("click", (event) => {
   if (!image || !zoomDialog) return;
   const documentInfo = renderedResult?.document || {};
   const kind = image.dataset.zoomKind || (image.closest("#source-visual") ? "source" : `target-${renderedResult?.translation?.target_language_code || "en"}`);
-  const isSource = kind === "source";
+  const isSource = kind.startsWith("source");
   const targetCode = kind.startsWith("target-") ? kind.slice("target-".length) : "";
   const target = (renderedResult?.translations || []).find((item) => item.target_language_code === targetCode)
     || renderedResult?.translation || {};
   const pageCount = Math.max(1, Number(isSource ? documentInfo.page_count : target.zoom_page_count) || 1);
-  const url = isSource ? documentInfo.zoom_preview_url : target.zoom_preview_url;
+  const url = isSource
+    ? kind === "source-plain" ? documentInfo.zoom_original_preview_url : documentInfo.zoom_preview_url
+    : target.zoom_preview_url;
   zoomState = { image, page: 1, pageCount, url };
   showZoomPage(1);
   zoomDialog.showModal();

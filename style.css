@@ -152,6 +152,7 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .zoomed-preview-page{position:relative;aspect-ratio:var(--page-ratio,.72);width:auto;height:100%;overflow:hidden}
 .zoomed-preview-page>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
 .zoomed-preview-page>.ocr-box-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.zoomed-preview-page .ocr-box{animation:none!important;opacity:1!important}
 .image-zoom-close{position:absolute;top:9px;right:12px;width:36px;height:36px;border:0;border-radius:50%;background:var(--line);color:var(--ink);font-size:25px;line-height:1;cursor:pointer}
 .image-zoom-nav{position:absolute;z-index:2;top:50%;transform:translateY(-50%);width:44px;height:56px;border:0;border-radius:12px;background:#102345d9;color:#fff;font-size:36px;line-height:1;cursor:pointer}
 .image-zoom-nav:disabled{opacity:.35;cursor:default}
