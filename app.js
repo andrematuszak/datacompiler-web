@@ -83,7 +83,7 @@ function fillSelect(select, options = [], selectedValue) {
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
     if (!artifact) return;
-    const keys = ["url", "source_text_url", "target_text_url", "image_url", "zoom_preview_url", "zoom_original_preview_url"];
+    const keys = ["url", "source_text_url", "target_text_url", "image_url", "zoom_preview_url", "zoom_original_preview_url", "zoom_text_preview_url"];
     if (artifact.generated === false) {
       keys.forEach((key) => delete artifact[key]);
       return;
@@ -617,8 +617,9 @@ function makeVisualFrame(result) {
       box.append(...children.flat());
       return box;
     };
-    const sourceBox = original.url
-      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: "source-plain" } }))
+    const sourceTextUrl = targets[0]?.preview.source_text_url;
+    const sourceBox = (sourceTextUrl || original.url)
+      ? makeNativeBox(el("img", { className: "native-page native-source", src: sourceTextUrl || original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: sourceTextUrl ? "source-text" : "source-plain" } }))
       : null;
     let targetBox;
     if (targets.length > 1) {
@@ -924,7 +925,7 @@ $("work").addEventListener("click", (event) => {
     || renderedResult?.translation || {};
   const pageCount = Math.max(1, Number(isSource ? documentInfo.page_count : target.zoom_page_count) || 1);
   const url = isSource
-    ? kind === "source-plain" ? documentInfo.zoom_original_preview_url : documentInfo.zoom_preview_url
+    ? kind === "source-text" ? documentInfo.zoom_text_preview_url : kind === "source-plain" ? documentInfo.zoom_original_preview_url : documentInfo.zoom_preview_url
     : target.zoom_preview_url;
   zoomState = { image, page: 1, pageCount, url };
   showZoomPage(1);
