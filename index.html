@@ -63,7 +63,10 @@
   </main>
   <dialog id="image-zoom" class="image-zoom" aria-label="Enlarged document preview">
     <button id="zoom-close" class="image-zoom-close" type="button" aria-label="Close enlarged preview">×</button>
-    <img id="zoom-image" alt="">
+    <button id="zoom-prev" class="image-zoom-nav image-zoom-prev" type="button" aria-label="Previous page" hidden>‹</button>
+    <div id="zoom-content" class="image-zoom-content"></div>
+    <button id="zoom-next" class="image-zoom-nav image-zoom-next" type="button" aria-label="Next page" hidden>›</button>
+    <span id="zoom-page-count" class="image-zoom-page-count" aria-live="polite" hidden></span>
   </dialog>
   <footer><div class="wrap"><span>© DataCompiler 2026</span><a href="mailto:contact@data-compiler.com">contact@data-compiler.com</a></div></footer>
   <script src="/app.js"></script>

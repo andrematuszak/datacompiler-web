@@ -147,8 +147,16 @@ form[name="contact"] button{justify-self:start;font:inherit;font-weight:700;colo
 .visual-frame img{cursor:zoom-in}
 .image-zoom{position:fixed;inset:0;width:min(96vw,1400px);height:min(94vh,1000px);max-width:none;max-height:none;padding:52px 16px 16px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);overflow:hidden}
 .image-zoom::backdrop{background:rgba(5,10,20,.78)}
-.image-zoom img{display:block;width:100%;height:100%;object-fit:contain;cursor:zoom-out}
+.image-zoom-content{position:absolute;inset:52px 68px 42px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.image-zoom-content>img,.zoomed-preview-page{display:block;max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-out}
+.zoomed-preview-page{position:relative;aspect-ratio:var(--page-ratio,.72);width:auto;height:100%;overflow:hidden}
+.zoomed-preview-page>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.zoomed-preview-page>.ocr-box-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .image-zoom-close{position:absolute;top:9px;right:12px;width:36px;height:36px;border:0;border-radius:50%;background:var(--line);color:var(--ink);font-size:25px;line-height:1;cursor:pointer}
+.image-zoom-nav{position:absolute;z-index:2;top:50%;transform:translateY(-50%);width:44px;height:56px;border:0;border-radius:12px;background:#102345d9;color:#fff;font-size:36px;line-height:1;cursor:pointer}
+.image-zoom-nav:disabled{opacity:.35;cursor:default}
+.image-zoom-prev{left:12px}.image-zoom-next{right:12px}
+.image-zoom-page-count{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);padding:4px 10px;border-radius:20px;background:#102345d9;color:#fff;font-size:13px;font-weight:600}
 @media(prefers-reduced-motion:reduce){.scan-sweep{animation:none;opacity:.3;transform:translateY(760%)}}
 
 /* One sizing rule for every page box (left and right, scan and native), derived from the frame width. */

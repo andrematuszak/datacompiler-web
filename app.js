@@ -26,9 +26,13 @@ let progressRendered = false;
 let coreDone = false;
 let documentMode = null;     // "scan" or "native", known from the fast API
 let progressRatio = "900 / 1273";
+let renderedResult = null;
 
 function el(tag, props = {}, ...children) {
-  const node = Object.assign(document.createElement(tag), props);
+  const node = document.createElement(tag);
+  const { dataset, ...attributes } = props;
+  Object.assign(node, attributes);
+  for (const [key, value] of Object.entries(dataset || {})) node.dataset[key] = value;
   children.flat().filter((child) => child !== null && child !== undefined).forEach((child) => node.append(child));
   return node;
 }
@@ -79,7 +83,7 @@ function fillSelect(select, options = [], selectedValue) {
 function absoluteArtifactUrls(result, api) {
   const resolve = (artifact) => {
     if (!artifact) return;
-    const keys = ["url", "source_text_url", "target_text_url", "image_url"];
+    const keys = ["url", "source_text_url", "target_text_url", "image_url", "zoom_preview_url"];
     if (artifact.generated === false) {
       keys.forEach((key) => delete artifact[key]);
       return;
@@ -88,14 +92,17 @@ function absoluteArtifactUrls(result, api) {
       if (artifact[key]?.startsWith("/")) artifact[key] = api + artifact[key];
     }
   };
+  resolve(result.document);
   resolve(result.document?.original_preview);
   Object.values(result.document?.output_formats || {}).forEach(resolve);
   resolve(result.transcription?.text);
   resolve(result.transcription?.document);
   resolve(result.transcription?.preview);
+  resolve(result.translation);
   resolve(result.translation?.preview);
   resolve(result.translation?.document);
   (result.translations || []).forEach((translation) => {
+    resolve(translation);
     resolve(translation.preview);
     resolve(translation.document);
   });
@@ -509,9 +516,9 @@ function makeDiagnosticSourceFlow(result, anim) {
   const boxes = ocrWordBoxes(diagnostic);
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page" },
-    el("img", { src: info.original_preview.url, alt: "Original unblurred first page" }));
+    el("img", { src: info.original_preview.url, alt: "Original unblurred first page", dataset: { zoomKind: "source" } }));
   const detected = el("div", { className: "flow-page ocr-page" });
-  detected.append(el("img", { src: info.original_preview.url, alt: "First page" }));
+  detected.append(el("img", { src: info.original_preview.url, alt: "First page", dataset: { zoomKind: "source" } }));
   if (boxes.length) {
     detected.append(makeOcrOverlay(boxes, ocrBoxGranularity(diagnostic)));
   }
@@ -529,7 +536,7 @@ function makeCoreSourceFlow(result) {
   const ratio = `${preview.width || 900} / ${preview.height || 1273}`;
   const makePage = (detected) => {
     const page = el("div", { className: `flow-page${detected ? " ocr-page" : ""}` },
-      el("img", { src: preview.url, alt: detected ? "Original page with OCR detections" : "Original unblurred first page" }));
+      el("img", { src: preview.url, alt: detected ? "Original page with OCR detections" : "Original unblurred first page", dataset: { zoomKind: "source" } }));
     page.style.setProperty("--page-ratio", ratio);
     if (detected && boxes.length) page.append(makeOcrOverlay(boxes, ocrBoxGranularity(result)));
     return page;
@@ -544,14 +551,14 @@ function makeDiagnosticTranslationFlow(result) {
   const pageRatio = `${info.original_preview.width || 900} / ${info.original_preview.height || 1273}`;
   const source = el("div", { className: "flow-page text-preview" },
     preview.source_text_png_url
-      ? el("img", { src: artifactUrl(diagnosticApiBase(), preview.source_text_png_url), alt: `${info.source_language || "Source"} transcription preview` })
+      ? el("img", { src: artifactUrl(diagnosticApiBase(), preview.source_text_png_url), alt: `${info.source_language || "Source"} transcription preview`, dataset: { zoomKind: "source" } })
       : el("span", { className: "missing-source" }, "Preparing source text preview…"));
   const targetPage = el("div", { className: "flow-page target-preview" });
   source.style.setProperty("--page-ratio", pageRatio);
   targetPage.style.setProperty("--page-ratio", pageRatio);
   if (targets.length) {
     targets.forEach((target, index) => {
-      const image = el("img", { src: target.url, alt: `${target.language} translation preview`, className: `target-sample target-sample-${index}` });
+      const image = el("img", { src: target.url, alt: `${target.language} translation preview`, className: `target-sample target-sample-${index}`, dataset: { zoomKind: `target-${target.language_code || "en"}` } });
       image.style.setProperty("--sample-delay", `${index * 3}s`);
       targetPage.append(image);
     });
@@ -587,9 +594,9 @@ function makeVisualFrame(result) {
     frame.classList.add("diagnostic-flow-frame");
     const pageRatio = `${width} / ${height}`;
     const sourcePage = el("div", { className: "flow-page text-preview" },
-      sourceUrl ? el("img", { src: sourceUrl, alt: `${documentInfo.source_language || "Source"} transcription text` }) : el("span", { className: "missing-preview" }, "Transcription preview unavailable."));
+      sourceUrl ? el("img", { src: sourceUrl, alt: `${documentInfo.source_language || "Source"} transcription text`, dataset: { zoomKind: "source" } }) : el("span", { className: "missing-preview" }, "Transcription preview unavailable."));
     const targetPage = el("div", { className: "flow-page text-preview" },
-      targetUrl ? el("img", { src: targetUrl, alt: `${translation.target_language || "Translated"} text` }) : el("span", { className: "missing-preview" }, "Translation preview unavailable."));
+      targetUrl ? el("img", { src: targetUrl, alt: `${translation.target_language || "Translated"} text`, dataset: { zoomKind: `target-${translation.target_language_code || "en"}` } }) : el("span", { className: "missing-preview" }, "Translation preview unavailable."));
     sourcePage.style.setProperty("--page-ratio", pageRatio);
     targetPage.style.setProperty("--page-ratio", pageRatio);
     frame.append(el("div", { className: "flow-row translation-flow" }, sourcePage, makeFlowArrow("Translate"), targetPage));
@@ -611,17 +618,17 @@ function makeVisualFrame(result) {
       return box;
     };
     const sourceBox = original.url
-      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document` }))
+      ? makeNativeBox(el("img", { className: "native-page native-source", src: original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: "source" } }))
       : null;
     let targetBox;
     if (targets.length > 1) {
       targetBox = makeNativeBox(targets.map(({ item, preview: targetPreview }, index) => {
-        const image = el("img", { className: `native-page native-target-${index}`, src: targetPreview.url, alt: `${item.target_language || "Translated"} rebuilt document` });
+        const image = el("img", { className: `native-page native-target-${index}`, src: targetPreview.url, alt: `${item.target_language || "Translated"} rebuilt document`, dataset: { zoomKind: `target-${item.target_language_code || "en"}` } });
         image.style.setProperty("--sample-delay", `${index * 3}s`);
         return image;
       }));
     } else if (targets.length === 1) {
-      targetBox = makeNativeBox(el("img", { className: "native-page", src: targets[0].preview.url, alt: `${targets[0].item.target_language || "Translated"} rebuilt document` }));
+      targetBox = makeNativeBox(el("img", { className: "native-page", src: targets[0].preview.url, alt: `${targets[0].item.target_language || "Translated"} rebuilt document`, dataset: { zoomKind: `target-${targets[0].item.target_language_code || "en"}` } }));
     } else {
       targetBox = makeNativeBox(el("span", { className: "missing-preview" }, translation.message || "Translation preview is unavailable."));
     }
@@ -631,6 +638,7 @@ function makeVisualFrame(result) {
 }
 
 function render(result) {
+  renderedResult = result;
   const documentInfo = result.document || {};
   const transcription = result.transcription || {};
   const translation = result.translation || {};
@@ -670,7 +678,11 @@ function render(result) {
     } else if (!output && documentInfo.size_reduction_basis === "transcription") {
       percent = finitePercent(documentInfo.reduction_percent);
     }
-    const stats = [...metrics];
+    const stats = [metrics[0]];
+    if (documentInfo.page_count !== null && documentInfo.page_count !== undefined) {
+      stats.push(el("div", {}, el("strong", {}, String(documentInfo.page_count)), el("span", {}, "pages")));
+    }
+    stats.push(metrics[1]);
     const reductionMetric = sizeReductionMetric(
       percent,
       format === "PDF (layer)"
@@ -682,9 +694,6 @@ function render(result) {
           : "Transcribed PDF size compared with the uploaded file size."
     );
     if (reductionMetric) stats.push(reductionMetric);
-    if (documentInfo.page_count !== null && documentInfo.page_count !== undefined) {
-      stats.push(el("div", {}, el("strong", {}, String(documentInfo.page_count)), el("span", {}, "pages")));
-    }
     $("stats").replaceChildren(...stats);
     $("stats").hidden = false;
   };
@@ -866,19 +875,77 @@ drop.onclick = () => { if (!drop.classList.contains("processing-drop")) input.cl
 drop.onkeydown = (event) => { if ((event.key === "Enter" || event.key === " ") && !drop.classList.contains("processing-drop")) { event.preventDefault(); input.click(); } };
 input.onchange = () => input.files[0] && process(input.files[0]);
 const zoomDialog = $("image-zoom");
-const zoomImage = $("zoom-image");
+const zoomContent = $("zoom-content");
+const zoomPrev = $("zoom-prev");
+const zoomNext = $("zoom-next");
+const zoomPageCount = $("zoom-page-count");
+let zoomState = null;
+
+function showZoomPage(pageNumber) {
+  if (!zoomState) return;
+  zoomState.page = pageNumber;
+  zoomContent.replaceChildren();
+  if (pageNumber === 1) {
+    const frame = el("div", { className: "zoomed-preview-page" });
+    const originalFrame = zoomState.image.closest(".flow-page, .native-page-box");
+    const ratio = originalFrame?.style.getPropertyValue("--page-ratio");
+    if (ratio) frame.style.setProperty("--page-ratio", ratio);
+    if (zoomState.image.naturalWidth && zoomState.image.naturalHeight) {
+      frame.style.aspectRatio = `${zoomState.image.naturalWidth} / ${zoomState.image.naturalHeight}`;
+    }
+    frame.append(zoomState.image.cloneNode(true));
+    const overlay = originalFrame?.querySelector(".ocr-box-overlay");
+    if (overlay) frame.append(overlay.cloneNode(true));
+    zoomContent.append(frame);
+  } else {
+    const image = el("img", {
+      src: `${zoomState.url.replace(/\/$/, "")}/${pageNumber}`,
+      alt: `${zoomState.image.alt || "Document"}, page ${pageNumber}`,
+    });
+    zoomContent.append(image);
+  }
+  zoomPrev.disabled = pageNumber <= 1;
+  zoomNext.disabled = pageNumber >= zoomState.pageCount;
+  const canNavigate = Boolean(zoomState.url) && zoomState.pageCount > 1;
+  zoomPrev.hidden = !canNavigate;
+  zoomNext.hidden = !canNavigate;
+  zoomPageCount.hidden = !canNavigate;
+  zoomPageCount.textContent = `${pageNumber} / ${zoomState.pageCount}`;
+}
+
 $("work").addEventListener("click", (event) => {
   const image = event.target.closest(".visual-frame img");
   if (!image || !zoomDialog) return;
-  zoomImage.src = image.currentSrc || image.src;
-  zoomImage.alt = image.alt || "Document preview enlarged";
+  const documentInfo = renderedResult?.document || {};
+  const kind = image.dataset.zoomKind || (image.closest("#source-visual") ? "source" : `target-${renderedResult?.translation?.target_language_code || "en"}`);
+  const isSource = kind === "source";
+  const targetCode = kind.startsWith("target-") ? kind.slice("target-".length) : "";
+  const target = (renderedResult?.translations || []).find((item) => item.target_language_code === targetCode)
+    || renderedResult?.translation || {};
+  const pageCount = Math.max(1, Number(isSource ? documentInfo.page_count : target.zoom_page_count) || 1);
+  const url = isSource ? documentInfo.zoom_preview_url : target.zoom_preview_url;
+  zoomState = { image, page: 1, pageCount, url };
+  showZoomPage(1);
   zoomDialog.showModal();
 });
+zoomPrev.onclick = () => zoomState && showZoomPage(Math.max(1, zoomState.page - 1));
+zoomNext.onclick = () => zoomState && showZoomPage(Math.min(zoomState.pageCount, zoomState.page + 1));
 $("zoom-close").onclick = () => zoomDialog.close();
 zoomDialog.addEventListener("click", (event) => {
   if (event.target === zoomDialog) zoomDialog.close();
 });
-zoomDialog.addEventListener("close", () => zoomImage.removeAttribute("src"));
+zoomDialog.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft" && zoomState) zoomPrev.click();
+  if (event.key === "ArrowRight" && zoomState) zoomNext.click();
+});
+zoomDialog.addEventListener("close", () => {
+  zoomContent.replaceChildren();
+  zoomPageCount.textContent = "";
+  zoomPrev.hidden = true;
+  zoomNext.hidden = true;
+  zoomPageCount.hidden = true;
+  zoomState = null;
+});
 let activeFileDrags = 0;
 const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
 const setDragging = (on) => {
