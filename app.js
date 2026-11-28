@@ -619,7 +619,7 @@ function makeVisualFrame(result) {
     };
     const sourceTextUrl = targets[0]?.preview.source_text_url;
     const sourceBox = (sourceTextUrl || original.url)
-      ? makeNativeBox(el("img", { className: "native-page native-source", src: sourceTextUrl || original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: sourceTextUrl ? "source-text" : "source-plain" } }))
+      ? makeNativeBox(el("img", { className: `native-page native-source${documentInfo.document_type === "spreadsheet" ? " spreadsheet-source" : ""}`, src: sourceTextUrl || original.url, alt: `${documentInfo.source_language || "Source"} document`, dataset: { zoomKind: sourceTextUrl ? "source-text" : "source-plain" } }))
       : null;
     let targetBox;
     if (targets.length > 1) {
@@ -742,7 +742,9 @@ function render(result) {
     }
   }
 
-  const sourceFormats = [...FORMATS];
+  const sourceFormats = documentInfo.document_type === "spreadsheet"
+    ? FORMATS.filter((format) => format !== "PDF (layer)")
+    : [...FORMATS];
   const outputFormatLabels = { pdf_layer: "PDF (layer)", pdf_text: "PDF (text)" };
   const serverDefault = documentInfo.default_output_format;
   const defaultFormat = outputFormatLabels[serverDefault] ||
